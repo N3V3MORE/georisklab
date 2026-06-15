@@ -5,7 +5,7 @@ type: software
 authors:
   - family-names: Deb
     given-names: Sushmit
-repository-code: https://github.com/your-username/georisklab
+repository-code: https://github.com/N3V3MORE/georisklab
 abstract: Open-source empirical finance toolkit for measuring geopolitical risk and estimating asymmetric equity-market responses across emerging and developed markets.
 license: MIT
 version: 0.1.0

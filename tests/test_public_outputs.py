@@ -1,6 +1,13 @@
 from pathlib import Path
 
 
+def test_citation_repository_points_to_public_repo():
+    root = Path(__file__).resolve().parents[1]
+    citation = (root / "CITATION.cff").read_text(encoding="utf-8")
+
+    assert "repository-code: https://github.com/N3V3MORE/georisklab" in citation
+
+
 def test_dashboard_static_page_links_generated_outputs():
     root = Path(__file__).resolve().parents[1]
     page = root / "dashboard" / "index.html"

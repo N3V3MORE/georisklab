@@ -1,4 +1,4 @@
-.PHONY: setup data-monthly features regressions forecasts figures report validate-data test lint
+.PHONY: setup data-monthly features regressions forecasts figures report validate-data pipeline test lint
 
 setup:
 	python -m pip install -e .[dev]
@@ -23,6 +23,8 @@ report:
 
 validate-data:
 	python scripts/validate_data.py
+
+pipeline: data-monthly features validate-data regressions forecasts figures report
 
 test:
 	pytest

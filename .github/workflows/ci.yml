@@ -16,5 +16,7 @@ jobs:
         run: python -m pip install -e .[dev]
       - name: Lint
         run: ruff check .
+      - name: Sample pipeline
+        run: make pipeline
       - name: Test
         run: pytest
