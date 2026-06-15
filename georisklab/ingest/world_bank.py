@@ -4,6 +4,8 @@ from urllib.request import urlopen
 
 import pandas as pd
 
+from georisklab.utils.validation import assert_no_duplicate_keys
+
 
 def load_world_bank_indicator(indicator: str, countries: list[str]) -> pd.DataFrame:
     country_part = ";".join(countries)
@@ -22,11 +24,13 @@ def load_world_bank_indicator(indicator: str, countries: list[str]) -> pd.DataFr
             continue
         records.append(
             {
-                "date": pd.Timestamp(f"{row['date']}-01-01"),
+                "date_month": pd.Timestamp(f"{row['date']}-01-01"),
                 "country_iso3": row.get("countryiso3code", ""),
                 "indicator_code": row.get("indicator", {}).get("id", indicator),
                 "value": float(row["value"]),
             }
         )
 
-    return pd.DataFrame(records, columns=["date", "country_iso3", "indicator_code", "value"])
+    df = pd.DataFrame(records, columns=["date_month", "country_iso3", "indicator_code", "value"])
+    assert_no_duplicate_keys(df, ["date_month", "country_iso3", "indicator_code"])
+    return df

@@ -67,16 +67,19 @@ def build_gdelt_country_month(events: pd.DataFrame, filters: dict) -> pd.DataFra
 
     risk_columns = list(EVENT_TYPES.values())
     monthly["risk_index_raw"] = np.log1p(monthly[risk_columns].sum(axis=1))
-    risk_std = monthly["risk_index_raw"].std(ddof=0)
-    if risk_std == 0 or pd.isna(risk_std):
-        monthly["risk_index_zscore"] = 0.0
-    else:
-        monthly["risk_index_zscore"] = (
-            monthly["risk_index_raw"] - monthly["risk_index_raw"].mean()
-        ) / risk_std
+    monthly["risk_index_zscore"] = monthly.groupby("country_iso3", group_keys=False)[
+        "risk_index_raw"
+    ].transform(_country_zscore)
 
     monthly["source_download_date"] = filters.get("source_download_date", "")
     monthly["filter_version"] = filters.get("filter_version", "default")
     assert_no_duplicate_keys(monthly, keys)
 
     return monthly[OUTPUT_COLUMNS].reset_index(drop=True)
+
+
+def _country_zscore(series: pd.Series) -> pd.Series:
+    risk_std = series.std(ddof=0)
+    if risk_std == 0 or pd.isna(risk_std):
+        return pd.Series(0.0, index=series.index)
+    return (series - series.mean()) / risk_std

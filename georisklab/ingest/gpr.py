@@ -11,6 +11,22 @@ GPR_COLUMNS = ["gpr_global", "gprt_global", "gpra_global"]
 
 def load_gpr(path_or_url: str) -> pd.DataFrame:
     df = pd.read_csv(path_or_url)
+    return _normalize_gpr(df)
+
+
+def load_caldara_iacoviello_gpr(path_or_url: str) -> pd.DataFrame:
+    df = pd.read_csv(path_or_url)
+    column_map = {
+        "month": "date_month",
+        "GPR": "gpr_global",
+        "GPRT": "gprt_global",
+        "GPRA": "gpra_global",
+    }
+    df = df.rename(columns=column_map)
+    return _normalize_gpr(df)
+
+
+def _normalize_gpr(df: pd.DataFrame) -> pd.DataFrame:
     ensure_columns(df, ["date_month", *GPR_COLUMNS])
 
     df = df.copy()
