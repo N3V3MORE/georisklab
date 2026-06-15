@@ -12,6 +12,14 @@ add_project_root()
 TASKS = {
     "setup": [[sys.executable, "-m", "pip", "install", "-e", ".[dev]"]],
     "data-monthly": [[sys.executable, "scripts/build_monthly_data.py"]],
+    "data-real": [
+        [
+            sys.executable,
+            "scripts/build_real_monthly_data.py",
+            "--config",
+            "config/sources.yml",
+        ]
+    ],
     "features": [[sys.executable, "scripts/build_features.py"]],
     "regressions": [[sys.executable, "scripts/run_regressions.py"]],
     "forecasts": [[sys.executable, "scripts/run_forecasts.py"]],
@@ -32,12 +40,41 @@ PIPELINE = [
     "report",
 ]
 
+PIPELINE_REAL = [
+    "data-real",
+    "features-real",
+    "validate-data-real",
+    "regressions-real",
+    "forecasts-real",
+    "figures-real",
+    "report",
+]
+
+TASKS.update(
+    {
+        "features-real": [[sys.executable, "scripts/build_features.py", "--dataset", "real"]],
+        "validate-data-real": [
+            [sys.executable, "scripts/validate_data.py", "--dataset", "real"]
+        ],
+        "regressions-real": [
+            [sys.executable, "scripts/run_regressions.py", "--dataset", "real"]
+        ],
+        "forecasts-real": [[sys.executable, "scripts/run_forecasts.py", "--dataset", "real"]],
+        "figures-real": [[sys.executable, "scripts/make_figures.py", "--dataset", "real"]],
+    }
+)
+
 
 def run_task(name: str) -> int:
-    task_names = PIPELINE if name == "pipeline" else [name]
+    if name == "pipeline":
+        task_names = PIPELINE
+    elif name == "pipeline-real":
+        task_names = PIPELINE_REAL
+    else:
+        task_names = [name]
     for task_name in task_names:
         if task_name not in TASKS:
-            valid = ", ".join([*TASKS, "pipeline"])
+            valid = ", ".join([*TASKS, "pipeline", "pipeline-real"])
             raise ValueError(f"unknown task '{task_name}'. Valid tasks: {valid}")
         for command in TASKS[task_name]:
             result = subprocess.run(command, check=False)
@@ -48,7 +85,7 @@ def run_task(name: str) -> int:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Run GeoRiskLab project tasks.")
-    parser.add_argument("task", choices=[*TASKS, "pipeline"])
+    parser.add_argument("task", choices=[*TASKS, "pipeline", "pipeline-real"])
     args = parser.parse_args()
     raise SystemExit(run_task(args.task))
 

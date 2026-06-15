@@ -36,10 +36,9 @@ def test_expanding_standardize_shocks_uses_only_prior_history():
         }
     )
 
-    result = expanding_standardize_shocks(df, ["gpr_global"])
+    result = expanding_standardize_shocks(df, ["gpr_global"], min_periods=2)
 
-    assert result["gpr_global_z"].iloc[0] == 0.0
-    assert result["gpr_global_z"].iloc[1] == 0.0
+    assert result["gpr_global_z"].iloc[:2].isna().all()
     assert result["gpr_global_z"].iloc[2] == 3.0
 
 
@@ -47,13 +46,39 @@ def test_expanding_standardize_shocks_handles_groups_and_constants():
     df = pd.DataFrame(
         {
             "date_month": pd.to_datetime(
-                ["2020-01-01", "2020-02-01", "2020-01-01", "2020-02-01"]
+                [
+                    "2020-01-01",
+                    "2020-02-01",
+                    "2020-03-01",
+                    "2020-01-01",
+                    "2020-02-01",
+                    "2020-03-01",
+                ]
             ),
-            "country_iso3": ["A", "A", "B", "B"],
-            "gdelt_risk": [5.0, 5.0, 1.0, 3.0],
+            "country_iso3": ["A", "A", "A", "B", "B", "B"],
+            "gdelt_risk": [5.0, 5.0, 5.0, 1.0, 1.0, 1.0],
         }
     )
 
-    result = expanding_standardize_shocks(df, ["gdelt_risk"], group_cols=["country_iso3"])
+    result = expanding_standardize_shocks(
+        df,
+        ["gdelt_risk"],
+        group_cols=["country_iso3"],
+        min_periods=2,
+    )
 
-    np.testing.assert_allclose(result["gdelt_risk_z"], [0.0, 0.0, 0.0, 0.0])
+    assert result["gdelt_risk_z"].iloc[[0, 1, 3, 4]].isna().all()
+    np.testing.assert_allclose(result["gdelt_risk_z"].iloc[[2, 5]], [0.0, 0.0])
+
+
+def test_expanding_standardize_shocks_defaults_to_missing_until_min_history():
+    df = pd.DataFrame(
+        {
+            "date_month": pd.date_range("2020-01-01", periods=24, freq="MS"),
+            "gpr_global": [float(value) for value in range(24)],
+        }
+    )
+
+    result = expanding_standardize_shocks(df, ["gpr_global"])
+
+    assert result["gpr_global_z"].iloc[:24].isna().all()

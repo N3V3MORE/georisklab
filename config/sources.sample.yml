@@ -1,0 +1,11 @@
+gpr:
+  path_or_url: data/raw/gpr/gpr_export.csv
+  loader: caldara_iacoviello
+
+fama_french:
+  developed_zip: data/raw/fama_french/developed_3_factors.zip
+  emerging_zip: data/raw/fama_french/emerging_3_factors.zip
+
+sample_period:
+  start: "2000-01-01"
+  end: null

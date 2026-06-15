@@ -53,6 +53,38 @@ The current default pipeline is sample mode. It writes deterministic sample
 data and reproducible outputs so reviewers can test the software without
 downloading restricted data or providing API keys.
 
+## Real-data pipeline
+
+Copy the sample source configuration and edit the local paths:
+
+```bash
+cp config/sources.sample.yml config/sources.yml
+```
+
+Then run:
+
+```bash
+make data-real
+make pipeline-real
+```
+
+Without `make`:
+
+```bash
+python scripts/run_task.py pipeline-real
+```
+
+The real pipeline reads local raw files from `data/raw/` and writes:
+
+```text
+data/processed/gpr_monthly.csv
+data/processed/market_returns_monthly.csv
+data/processed/market_spread_monthly.csv
+data/metadata/gpr_manifest.json
+```
+
+Do not commit the raw files or local `config/sources.yml`.
+
 ## Expected outputs
 
 ```text

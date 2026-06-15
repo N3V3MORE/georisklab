@@ -82,12 +82,13 @@ def test_expanding_window_forecast_standardizes_features_without_future_leakage(
         df,
         "target",
         ["shock"],
-        min_train_months=3,
+        min_train_months=2,
         standardize_feature_cols=["shock"],
+        standardize_min_periods=2,
     )
 
     assert "benchmark_predicted" in forecasts.columns
-    assert forecasts["benchmark_predicted"].iloc[0] == pytest.approx(2.0)
+    assert forecasts["benchmark_predicted"].iloc[0] == pytest.approx(3.5)
 
 
 def test_forecast_metric_row_historical_mean_oos_r2_is_zero():

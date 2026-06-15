@@ -1,6 +1,8 @@
 # ruff: noqa: E402, I001
 from __future__ import annotations
 
+import argparse
+
 import pandas as pd
 
 from _bootstrap import add_project_root
@@ -16,10 +18,11 @@ from georisklab.utils.validation import (  # noqa: E402
 )
 
 
-def validate_data() -> None:
+def validate_data(dataset: str = "sample") -> None:
     paths = get_project_paths()
     paths.ensure_output_dirs()
-    panel_path = paths.data_processed / "sample_analysis_panel.csv"
+    panel_name = "sample_analysis_panel.csv" if dataset == "sample" else "analysis_panel.csv"
+    panel_path = paths.data_processed / panel_name
     metadata_path = paths.data_metadata / "source_manifest.json"
 
     if not panel_path.exists():
@@ -48,7 +51,10 @@ def validate_data() -> None:
 
 
 def main() -> None:
-    validate_data()
+    parser = argparse.ArgumentParser(description="Validate GeoRiskLab processed data.")
+    parser.add_argument("--dataset", choices=["sample", "real"], default="sample")
+    args = parser.parse_args()
+    validate_data(dataset=args.dataset)
 
 
 if __name__ == "__main__":

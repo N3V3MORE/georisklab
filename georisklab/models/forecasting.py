@@ -14,9 +14,14 @@ def expanding_window_forecast(
     test_window: int = 1,
     ridge_alpha: float = 0.0,
     standardize_feature_cols: list[str] | None = None,
+    standardize_min_periods: int = 24,
 ) -> pd.DataFrame:
     if standardize_feature_cols:
-        df = expanding_standardize_shocks(df, standardize_feature_cols)
+        df = expanding_standardize_shocks(
+            df,
+            standardize_feature_cols,
+            min_periods=standardize_min_periods,
+        )
         feature_cols = [
             f"{column}_z" if column in standardize_feature_cols else column
             for column in feature_cols
@@ -62,6 +67,7 @@ def forecast_metric_row(
     min_train_months: int,
     ridge_alpha: float = 0.0,
     standardize_feature_cols: list[str] | None = None,
+    standardize_min_periods: int = 24,
 ) -> dict:
     forecasts = expanding_window_forecast(
         df,
@@ -70,6 +76,7 @@ def forecast_metric_row(
         min_train_months=min_train_months,
         ridge_alpha=ridge_alpha,
         standardize_feature_cols=standardize_feature_cols,
+        standardize_min_periods=standardize_min_periods,
     )
     metrics = evaluate_forecasts(
         forecasts["actual"],

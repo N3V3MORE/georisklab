@@ -1,11 +1,13 @@
 .venv/
 .env
+config/sources.yml
 .serena/
 __pycache__/
 *.pyc
 .ipynb_checkpoints/
 data/raw/
 data/interim/
+data/metadata/gpr_manifest.json
 data/processed/*
 !data/processed/sample_*.csv
 reports/*.pdf

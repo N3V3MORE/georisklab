@@ -1,6 +1,8 @@
 # ruff: noqa: E402, I001
 from __future__ import annotations
 
+import argparse
+
 import pandas as pd
 
 from _bootstrap import add_project_root
@@ -17,11 +19,12 @@ from georisklab.visualization.plots import (  # noqa: E402
 )
 
 
-def make_figures() -> None:
+def make_figures(dataset: str = "sample") -> None:
     paths = get_project_paths()
     paths.ensure_output_dirs()
+    panel_name = "sample_analysis_panel.csv" if dataset == "sample" else "analysis_panel.csv"
     panel = pd.read_csv(
-        paths.data_processed / "sample_analysis_panel.csv",
+        paths.data_processed / panel_name,
         parse_dates=["date_month"],
     )
     regressions = pd.read_csv(paths.reports_tables / "table_02_baseline_regressions.csv")
@@ -39,7 +42,10 @@ def make_figures() -> None:
 
 
 def main() -> None:
-    make_figures()
+    parser = argparse.ArgumentParser(description="Make GeoRiskLab figures.")
+    parser.add_argument("--dataset", choices=["sample", "real"], default="sample")
+    args = parser.parse_args()
+    make_figures(dataset=args.dataset)
 
 
 if __name__ == "__main__":

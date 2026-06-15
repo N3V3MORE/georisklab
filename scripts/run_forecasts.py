@@ -1,6 +1,8 @@
 # ruff: noqa: E402, I001
 from __future__ import annotations
 
+import argparse
+
 import pandas as pd
 
 from _bootstrap import add_project_root
@@ -11,13 +13,11 @@ from georisklab.models.forecasting import forecast_metric_row  # noqa: E402
 from georisklab.utils.config import get_project_paths  # noqa: E402
 
 
-def run_forecasts() -> None:
+def run_forecasts(dataset: str = "sample") -> None:
     paths = get_project_paths()
     paths.ensure_output_dirs()
-    panel = pd.read_csv(
-        paths.data_processed / "sample_analysis_panel.csv",
-        parse_dates=["date_month"],
-    )
+    panel_name = "sample_analysis_panel.csv" if dataset == "sample" else "analysis_panel.csv"
+    panel = pd.read_csv(paths.data_processed / panel_name, parse_dates=["date_month"])
 
     target = (
         panel.pivot_table(index="date_month", columns="market_id", values="ret_fwd_1m")
@@ -72,7 +72,10 @@ def run_forecasts() -> None:
 
 
 def main() -> None:
-    run_forecasts()
+    parser = argparse.ArgumentParser(description="Run GeoRiskLab forecasts.")
+    parser.add_argument("--dataset", choices=["sample", "real"], default="sample")
+    args = parser.parse_args()
+    run_forecasts(dataset=args.dataset)
 
 
 if __name__ == "__main__":

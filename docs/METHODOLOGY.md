@@ -83,11 +83,17 @@ Keep the weighting transparent. Do not use an opaque score unless you can explai
 ret_t = 100 * log(price_t / price_t-1)
 ```
 
+Returns in project outputs are monthly percentage points, not decimals.
+
 ### Excess returns
 
 ```text
 excess_ret_t = ret_t - risk_free_t
 ```
+
+For Fama-French factor files, `Mkt-RF` is already an excess return. The loader
+stores `Mkt-RF` as `excess_return`, `RF` as `risk_free_rate`, and computes
+`return_usd = excess_return + risk_free_rate`.
 
 If risk-free alignment is messy, use raw USD returns in version 0.1 and document the limitation.
 

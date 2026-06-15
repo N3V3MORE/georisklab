@@ -1,6 +1,8 @@
 # ruff: noqa: E402, I001
 from __future__ import annotations
 
+import argparse
+
 import pandas as pd
 
 from _bootstrap import add_project_root
@@ -11,13 +13,11 @@ from georisklab.econometrics.local_projection import run_local_projections  # no
 from georisklab.utils.config import get_project_paths  # noqa: E402
 
 
-def run_regressions() -> None:
+def run_regressions(dataset: str = "sample") -> None:
     paths = get_project_paths()
     paths.ensure_output_dirs()
-    panel = pd.read_csv(
-        paths.data_processed / "sample_analysis_panel.csv",
-        parse_dates=["date_month"],
-    )
+    panel_name = "sample_analysis_panel.csv" if dataset == "sample" else "analysis_panel.csv"
+    panel = pd.read_csv(paths.data_processed / panel_name, parse_dates=["date_month"])
 
     results = run_local_projections(
         panel,
@@ -28,7 +28,10 @@ def run_regressions() -> None:
 
 
 def main() -> None:
-    run_regressions()
+    parser = argparse.ArgumentParser(description="Run GeoRiskLab regressions.")
+    parser.add_argument("--dataset", choices=["sample", "real"], default="sample")
+    args = parser.parse_args()
+    run_regressions(dataset=args.dataset)
 
 
 if __name__ == "__main__":

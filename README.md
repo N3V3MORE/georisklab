@@ -59,6 +59,8 @@ make forecasts
 make figures
 make report
 make pipeline
+make data-real
+make pipeline-real
 make test
 ```
 
@@ -67,6 +69,7 @@ If `make` is not installed, use the cross-platform runner:
 ```bash
 python scripts/run_task.py setup
 python scripts/run_task.py pipeline
+python scripts/run_task.py pipeline-real
 python scripts/run_task.py test
 python scripts/run_task.py lint
 ```
@@ -74,6 +77,15 @@ python scripts/run_task.py lint
 The default pipeline uses deterministic sample data. It proves that the code,
 tables, figures, and report can be rebuilt without private data or API keys. It
 does not claim empirical findings until real source data are supplied.
+
+The real-data pipeline is separate. Copy `config/sources.sample.yml` to
+`config/sources.yml`, point it at local raw GPR and Fama-French files, then run
+`make data-real` or `make pipeline-real`. Raw source files under `data/raw/`
+must stay out of git.
+
+Return columns are monthly percentage points, not decimals. For Fama-French
+factor files, `Mkt-RF` becomes `excess_return`, `RF` becomes `risk_free_rate`,
+and `return_usd = excess_return + risk_free_rate`.
 
 Important limitation: the two-market aggregate sample cannot support credible clustered panel inference. Country-clustered panel inference requires a country-level panel with enough independent country clusters.
 

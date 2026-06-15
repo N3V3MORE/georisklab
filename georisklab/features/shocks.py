@@ -23,6 +23,7 @@ def expanding_standardize_shocks(
     cols: list[str],
     date_col: str = "date_month",
     group_cols: list[str] | None = None,
+    min_periods: int = 24,
 ) -> pd.DataFrame:
     ensure_columns(df, [date_col, *cols, *(group_cols or [])])
     result = df.copy()
@@ -33,10 +34,10 @@ def expanding_standardize_shocks(
     for column in cols:
         if group_cols:
             result[f"{column}_z"] = result.groupby(group_cols, group_keys=False)[column].transform(
-                _prior_expanding_zscore
+                lambda series: _prior_expanding_zscore(series, min_periods)
             )
         else:
-            result[f"{column}_z"] = _prior_expanding_zscore(result[column])
+            result[f"{column}_z"] = _prior_expanding_zscore(result[column], min_periods)
 
     return (
         result.sort_values("_original_order")
@@ -45,9 +46,12 @@ def expanding_standardize_shocks(
     )
 
 
-def _prior_expanding_zscore(series: pd.Series) -> pd.Series:
+def _prior_expanding_zscore(series: pd.Series, min_periods: int) -> pd.Series:
     values = pd.to_numeric(series, errors="raise")
-    mean = values.expanding(min_periods=1).mean().shift(1)
-    std = values.expanding(min_periods=2).std(ddof=0).shift(1)
+    prior_count = values.expanding(min_periods=1).count().shift(1)
+    has_history = prior_count >= min_periods
+    mean = values.expanding(min_periods=min_periods).mean().shift(1)
+    std = values.expanding(min_periods=min_periods).std(ddof=0).shift(1)
     zscore = (values - mean) / std
-    return zscore.replace([float("inf"), float("-inf")], 0.0).fillna(0.0)
+    zscore = zscore.replace([float("inf"), float("-inf")], pd.NA)
+    return zscore.where(~(has_history & zscore.isna()), 0.0).where(has_history)
