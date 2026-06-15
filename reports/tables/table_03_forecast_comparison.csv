@@ -1,6 +1,6 @@
 model,rmse,mae,oos_r2,n_forecasts
-historical_mean,0.405677,0.348832,-0.009657,179
-macro_only,0.40757,0.351521,-0.019098,179
-macro_plus_gpr,0.357941,0.320493,0.213975,179
-macro_plus_gpr_gdelt,0.358456,0.319293,0.211713,179
-regularized_linear,0.358508,0.319442,0.211484,179
+historical_mean,0.405677,0.348832,0.0,179
+macro_only,0.40757,0.351521,-0.00935,179
+macro_plus_gpr,0.35984,0.3201,0.213214,179
+macro_plus_gpr_gdelt,0.362229,0.320573,0.202729,179
+regularized_linear,0.3616,0.320223,0.2055,179

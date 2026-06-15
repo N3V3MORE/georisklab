@@ -16,3 +16,38 @@ def standardize_shocks(df: pd.DataFrame, cols: list[str]) -> pd.DataFrame:
             result[f"{column}_z"] = (values - values.mean()) / std
 
     return result
+
+
+def expanding_standardize_shocks(
+    df: pd.DataFrame,
+    cols: list[str],
+    date_col: str = "date_month",
+    group_cols: list[str] | None = None,
+) -> pd.DataFrame:
+    ensure_columns(df, [date_col, *cols, *(group_cols or [])])
+    result = df.copy()
+    result["_original_order"] = range(len(result))
+
+    sort_cols = [*(group_cols or []), date_col]
+    result = result.sort_values(sort_cols)
+    for column in cols:
+        if group_cols:
+            result[f"{column}_z"] = result.groupby(group_cols, group_keys=False)[column].transform(
+                _prior_expanding_zscore
+            )
+        else:
+            result[f"{column}_z"] = _prior_expanding_zscore(result[column])
+
+    return (
+        result.sort_values("_original_order")
+        .drop(columns=["_original_order"])
+        .reset_index(drop=True)
+    )
+
+
+def _prior_expanding_zscore(series: pd.Series) -> pd.Series:
+    values = pd.to_numeric(series, errors="raise")
+    mean = values.expanding(min_periods=1).mean().shift(1)
+    std = values.expanding(min_periods=2).std(ddof=0).shift(1)
+    zscore = (values - mean) / std
+    return zscore.replace([float("inf"), float("-inf")], 0.0).fillna(0.0)

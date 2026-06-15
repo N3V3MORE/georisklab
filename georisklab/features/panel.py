@@ -18,8 +18,8 @@ def build_analysis_panel(
 
     panel = make_forward_returns(market_returns, [1, 3, 6])
     gpr_features = standardize_shocks(gpr, ["gpr_global", "gprt_global", "gpra_global"])
-    gdelt_features = gdelt[["date_month", "risk_index_zscore"]].rename(
-        columns={"risk_index_zscore": "gdelt_risk_z"}
+    gdelt_features = gdelt[["date_month", "risk_index_raw", "risk_index_zscore"]].rename(
+        columns={"risk_index_raw": "gdelt_risk_raw", "risk_index_zscore": "gdelt_risk_z"}
     )
     macro_wide = (
         macro_controls.pivot_table(
@@ -44,6 +44,9 @@ def build_analysis_panel(
             gpr_features[
                 [
                     "date_month",
+                    "gpr_global",
+                    "gprt_global",
+                    "gpra_global",
                     "gpr_global_z",
                     "gprt_global_z",
                     "gpra_global_z",

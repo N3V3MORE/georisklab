@@ -1,7 +1,7 @@
 import numpy as np
 
 
-def evaluate_forecasts(y_true, y_pred, task: str) -> dict:
+def evaluate_forecasts(y_true, y_pred, task: str, benchmark_pred=None) -> dict:
     actual = np.asarray(y_true, dtype=float)
     predicted = np.asarray(y_pred, dtype=float)
     if len(actual) != len(predicted):
@@ -9,7 +9,12 @@ def evaluate_forecasts(y_true, y_pred, task: str) -> dict:
 
     if task == "regression":
         errors = actual - predicted
-        baseline_errors = actual - actual.mean()
+        if benchmark_pred is None:
+            raise ValueError("benchmark_pred is required for regression OOS R2")
+        benchmark = np.asarray(benchmark_pred, dtype=float)
+        if len(benchmark) != len(actual):
+            raise ValueError("benchmark_pred must have the same length as y_true")
+        baseline_errors = actual - benchmark
         baseline_sse = float(np.sum(baseline_errors**2))
         model_sse = float(np.sum(errors**2))
         return {

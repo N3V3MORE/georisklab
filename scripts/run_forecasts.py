@@ -26,7 +26,7 @@ def run_forecasts() -> None:
         .reset_index()
     )
     features = panel.drop_duplicates("date_month")[
-        ["date_month", "sample_global_cycle", "gpr_global_z", "gdelt_risk_z"]
+        ["date_month", "sample_global_cycle", "gpr_global", "gdelt_risk_raw"]
     ]
     forecast_data = target.merge(features, on="date_month").dropna()
 
@@ -43,23 +43,26 @@ def run_forecasts() -> None:
             "macro_plus_gpr",
             forecast_data,
             "spread_fwd_1m",
-            ["sample_global_cycle", "gpr_global_z"],
+            ["sample_global_cycle", "gpr_global"],
             120,
+            standardize_feature_cols=["gpr_global"],
         ),
         forecast_metric_row(
             "macro_plus_gpr_gdelt",
             forecast_data,
             "spread_fwd_1m",
-            ["sample_global_cycle", "gpr_global_z", "gdelt_risk_z"],
+            ["sample_global_cycle", "gpr_global", "gdelt_risk_raw"],
             120,
+            standardize_feature_cols=["gpr_global", "gdelt_risk_raw"],
         ),
         forecast_metric_row(
             "regularized_linear",
             forecast_data,
             "spread_fwd_1m",
-            ["sample_global_cycle", "gpr_global_z", "gdelt_risk_z"],
+            ["sample_global_cycle", "gpr_global", "gdelt_risk_raw"],
             120,
             ridge_alpha=1.0,
+            standardize_feature_cols=["gpr_global", "gdelt_risk_raw"],
         ),
     ]
     pd.DataFrame(rows).round(6).to_csv(

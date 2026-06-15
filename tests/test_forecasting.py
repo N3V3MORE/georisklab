@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from georisklab.models.forecasting import expanding_window_forecast, forecast_metric_row
 from georisklab.models.metrics import evaluate_forecasts
 from georisklab.models.splits import make_time_splits
 
@@ -27,11 +28,37 @@ def test_make_time_splits_rejects_unsorted_dates():
 
 
 def test_evaluate_forecasts_regression_metrics():
-    metrics = evaluate_forecasts([1.0, 2.0, 3.0], [1.0, 2.5, 2.5], task="regression")
+    metrics = evaluate_forecasts(
+        [1.0, 2.0, 3.0],
+        [1.0, 2.5, 2.5],
+        task="regression",
+        benchmark_pred=[2.0, 2.0, 2.0],
+    )
 
     assert metrics["rmse"] == pytest.approx(np.sqrt(0.5 / 3))
     assert metrics["mae"] == pytest.approx(1 / 3)
     assert "oos_r2" in metrics
+
+
+def test_evaluate_forecasts_oos_r2_uses_supplied_historical_benchmark():
+    metrics = evaluate_forecasts(
+        [10.0, 20.0],
+        [10.0, 20.0],
+        task="regression",
+        benchmark_pred=[0.0, 0.0],
+    )
+
+    assert metrics["oos_r2"] == 1.0
+
+
+def test_evaluate_forecasts_rejects_bad_benchmark_length():
+    with pytest.raises(ValueError, match="benchmark_pred"):
+        evaluate_forecasts(
+            [1.0, 2.0],
+            [1.0, 2.0],
+            task="regression",
+            benchmark_pred=[1.0],
+        )
 
 
 def test_evaluate_forecasts_classification_metrics():
@@ -40,3 +67,37 @@ def test_evaluate_forecasts_classification_metrics():
     assert metrics["brier_score"] == pytest.approx(0.08)
     assert metrics["directional_accuracy"] == 1.0
     assert "log_loss" in metrics
+
+
+def test_expanding_window_forecast_standardizes_features_without_future_leakage():
+    df = pd.DataFrame(
+        {
+            "date_month": pd.date_range("2020-01-01", periods=5, freq="MS"),
+            "target": [1.0, 2.0, 3.0, 4.0, 5.0],
+            "shock": [10.0, 20.0, 30.0, 40.0, 1000.0],
+        }
+    )
+
+    forecasts = expanding_window_forecast(
+        df,
+        "target",
+        ["shock"],
+        min_train_months=3,
+        standardize_feature_cols=["shock"],
+    )
+
+    assert "benchmark_predicted" in forecasts.columns
+    assert forecasts["benchmark_predicted"].iloc[0] == pytest.approx(2.0)
+
+
+def test_forecast_metric_row_historical_mean_oos_r2_is_zero():
+    df = pd.DataFrame(
+        {
+            "date_month": pd.date_range("2020-01-01", periods=5, freq="MS"),
+            "target": [1.0, 2.0, 3.0, 4.0, 5.0],
+        }
+    )
+
+    metrics = forecast_metric_row("historical_mean", df, "target", [], 3)
+
+    assert metrics["oos_r2"] == 0.0

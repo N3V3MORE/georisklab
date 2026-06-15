@@ -10,9 +10,13 @@ source_download_date,0,0.0
 ret_fwd_1m,2,0.0033
 ret_fwd_3m,6,0.01
 ret_fwd_6m,12,0.02
+gpr_global,0,0.0
+gprt_global,0,0.0
+gpra_global,0,0.0
 gpr_global_z,0,0.0
 gprt_global_z,0,0.0
 gpra_global_z,0,0.0
+gdelt_risk_raw,0,0.0
 gdelt_risk_z,0,0.0
 sample_global_cycle,0,0.0
 spread_em_dev,0,0.0
