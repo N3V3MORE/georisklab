@@ -1,0 +1,13 @@
+{
+  "source_name": "GeoRiskLab deterministic sample",
+  "source_url": "generated locally from scripts/build_monthly_data.py",
+  "download_timestamp_utc": "2026-06-15T00:00:00+00:00",
+  "license_or_terms_note": "Synthetic sample data. Not empirical market data.",
+  "script_version": "sample-v1",
+  "files": [
+    "sample_gpr_monthly.csv",
+    "sample_market_returns_monthly.csv",
+    "sample_gdelt_country_monthly.csv",
+    "sample_macro_controls_monthly.csv"
+  ]
+}
