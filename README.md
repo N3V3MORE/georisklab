@@ -17,7 +17,7 @@ The project is successful when a reviewer can clone the repo, run a documented p
 1. A clean monthly panel from 1990 or 2000 onward.
 2. A GPR shock series and a GDELT event-intensity series.
 3. Baseline developed versus emerging market return results.
-4. At least one panel regression table.
+4. At least one panel regression table once country-level data are added.
 5. At least one local-projection or event-study figure.
 6. One forecasting comparison showing whether geopolitical features add out-of-sample value.
 7. A short limitations section that explains what the project does not prove.
@@ -58,6 +58,7 @@ make regressions
 make forecasts
 make figures
 make report
+make pipeline
 make test
 ```
 
@@ -73,6 +74,8 @@ python scripts/run_task.py lint
 The default pipeline uses deterministic sample data. It proves that the code,
 tables, figures, and report can be rebuilt without private data or API keys. It
 does not claim empirical findings until real source data are supplied.
+
+Important limitation: the two-market aggregate sample cannot support credible clustered panel inference. Country-clustered panel inference requires a country-level panel with enough independent country clusters.
 
 Generated public outputs:
 
@@ -106,4 +109,4 @@ Do not commit raw third-party market data. Commit only scripts, metadata, small 
 
 ## Suggested citation
 
-Add `CITATION.cff` before the first public release and archive the release through Zenodo if you want a DOI.
+Use `CITATION.cff` for repository citation metadata. Archive a tagged release through Zenodo only if you need a DOI.

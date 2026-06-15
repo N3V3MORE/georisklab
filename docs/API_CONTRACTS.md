@@ -32,20 +32,24 @@ date_month
 market_id
 market_class
 return_usd
+risk_free_rate
+excess_return
 source
 ```
 
 Rules:
 
-- Returns in percent unless config says otherwise.
-- Developed and emerging market identifiers must be standardised.
+- Returns are monthly percent values, not decimals.
+- For Fama-French factor files, `Mkt-RF` maps to `excess_return`, `RF` maps to `risk_free_rate`, and `return_usd = excess_return + risk_free_rate`.
+- Developed and emerging market identifiers must be standardised as `developed` and `emerging`.
+- Missing-value sentinels such as `-99.99` must fail validation rather than enter outputs.
 
 ### `load_world_bank_indicator(indicator: str, countries: list[str]) -> pd.DataFrame`
 
 Returns:
 
 ```text
-date
+date_month
 country_iso3
 indicator_code
 value
@@ -53,8 +57,8 @@ value
 
 Rules:
 
-- Preserve annual frequency first.
-- Frequency conversion happens in a separate feature step.
+- Preserve annual frequency as January month-start dates.
+- Expanding or forward-filling annual values to monthly panels happens in a separate feature step.
 
 ### `build_gdelt_country_month(events: pd.DataFrame, filters: dict) -> pd.DataFrame`
 
@@ -79,6 +83,7 @@ Rules:
 
 - All filters must be saved to metadata.
 - Empty country-months should be explicit zeros where appropriate.
+- `risk_index_zscore` is standardised within `country_iso3`, not globally across all countries.
 
 ## Features
 
@@ -95,6 +100,7 @@ Rules:
 
 - Standardisation parameters must be computed inside training windows for forecasting.
 - Full-sample standardisation is allowed only for descriptive regressions and must be documented.
+- Forecast features should use prior-only expanding standardisation, not full-sample z-scores.
 
 ## Econometrics
 
@@ -136,6 +142,8 @@ rmse
 mae
 oos_r2
 ```
+
+Regression `oos_r2` must use a benchmark forecast produced at the forecast origin, such as the historical training-window mean.
 
 For classification:
 

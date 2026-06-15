@@ -34,10 +34,12 @@ Never commit `.env`.
 make setup
 make data-monthly
 make features
+make validate-data
 make regressions
 make forecasts
 make figures
 make report
+make pipeline
 ```
 
 On systems without GNU Make, run the equivalent Python task runner:
@@ -125,11 +127,12 @@ Use GitHub Actions to run:
 
 ```text
 ruff check
+make pipeline
 pytest
 import smoke test
 ```
 
-Do not run the full data pipeline in CI. Public CI should not depend on external data availability or private API keys.
+Run the deterministic sample pipeline in CI. Do not run live external-data ingestion in CI, because public CI should not depend on external data availability or private API keys.
 
 ## Reproduction levels
 

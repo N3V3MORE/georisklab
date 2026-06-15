@@ -40,6 +40,19 @@ Design note:
 
 The GPR index should be the benchmark measure. The GDELT index should be presented as an extension, not a replacement.
 
+Implementation note:
+
+`load_caldara_iacoviello_gpr` documents the real-source mapping used by fixtures:
+
+```text
+month -> date_month
+GPR   -> gpr_global
+GPRT  -> gprt_global
+GPRA  -> gpra_global
+```
+
+Raw downloaded files should stay out of git. Commit tiny fixtures and metadata only.
+
 ### Economic Policy Uncertainty
 
 Use case:
@@ -65,6 +78,21 @@ Relevant page:
 Design note:
 
 Use factor or portfolio returns for the first version because they are clean and easier to cite than ad hoc ETF returns.
+
+Implementation note:
+
+Fama-French monthly factor files report `Mkt-RF` as an excess return and `RF` as
+the risk-free rate. The project normalises them as monthly percent values:
+
+```text
+excess_return = Mkt-RF
+risk_free_rate = RF
+return_usd = excess_return + risk_free_rate
+```
+
+Use developed and emerging files from the Kenneth French Data Library for the
+first empirical aggregate benchmark. The parser is fixture-tested with local
+zip files so CI does not depend on live downloads.
 
 ### FRED
 

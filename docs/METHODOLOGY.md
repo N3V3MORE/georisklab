@@ -7,6 +7,11 @@ software workflow, output schemas, regressions, forecasts, figures, and report
 generation. It is not evidence for the research hypotheses until real public
 source data are supplied through the documented ingestion contracts.
 
+The two-market aggregate sample cannot support credible clustered panel inference.
+Country-clustered panel inference requires a country-level panel with enough
+independent country clusters. Do not interpret the current aggregate sample as a
+credible panel-regression design.
+
 ## Identification logic
 
 The project should not claim clean causal identification from a simple return regression. The honest claim is narrower:
@@ -134,7 +139,7 @@ Interpretation:
 Minimum:
 
 - HAC standard errors for time-series regressions.
-- Country-clustered standard errors for panel regressions.
+- Country-clustered standard errors for panel regressions only after a country-level panel has enough clusters.
 - Driscoll-Kraay as robustness if cross-sectional dependence is serious.
 
 Do not report naive ordinary least squares standard errors as the main result.
