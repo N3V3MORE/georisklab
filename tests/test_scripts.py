@@ -63,3 +63,17 @@ def test_analysis_scripts_run_from_repo_root():
     assert (root / "reports" / "tables" / "table_03_forecast_comparison.csv").exists()
     assert (root / "reports" / "figures" / "fig_01_gpr_timeseries.png").exists()
     assert (root / "reports" / "main_report.pdf").exists()
+
+
+def test_task_runner_runs_documented_data_task():
+    root = Path(__file__).resolve().parents[1]
+
+    result = subprocess.run(
+        [sys.executable, "scripts/run_task.py", "data-monthly"],
+        cwd=root,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr

@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>GeoRiskLab</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --ink: #1b1d23;
+        --muted: #596171;
+        --line: #d9dee8;
+        --panel: #f7f8fb;
+        --accent: #0f766e;
+      }
+
+      body {
+        margin: 0;
+        font-family: Arial, sans-serif;
+        color: var(--ink);
+        background: #ffffff;
+      }
+
+      header,
+      main {
+        width: min(1120px, calc(100% - 32px));
+        margin: 0 auto;
+      }
+
+      header {
+        padding: 32px 0 18px;
+        border-bottom: 1px solid var(--line);
+      }
+
+      h1 {
+        margin: 0 0 8px;
+        font-size: 32px;
+        line-height: 1.15;
+      }
+
+      p {
+        line-height: 1.5;
+      }
+
+      .note {
+        max-width: 760px;
+        color: var(--muted);
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+        gap: 18px;
+        padding: 24px 0;
+      }
+
+      figure {
+        margin: 0;
+        border: 1px solid var(--line);
+        background: var(--panel);
+        border-radius: 6px;
+        overflow: hidden;
+      }
+
+      figure img {
+        display: block;
+        width: 100%;
+        height: auto;
+        background: #ffffff;
+      }
+
+      figcaption {
+        padding: 10px 12px;
+        font-size: 14px;
+        color: var(--muted);
+      }
+
+      .links {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin: 18px 0 30px;
+      }
+
+      .links a {
+        color: #ffffff;
+        background: var(--accent);
+        padding: 9px 12px;
+        border-radius: 4px;
+        text-decoration: none;
+        font-weight: 700;
+        font-size: 14px;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>GeoRiskLab</h1>
+      <p class="note">
+        Reproducible sample outputs for the geopolitical risk and equity-market response
+        pipeline. These charts use deterministic sample data, not empirical findings.
+      </p>
+      <div class="links">
+        <a href="../reports/tables/table_02_baseline_regressions.csv">Regression table</a>
+        <a href="../reports/tables/table_03_forecast_comparison.csv">Forecast table</a>
+        <a href="../reports/main_report.pdf">PDF report</a>
+      </div>
+    </header>
+    <main>
+      <section class="grid" aria-label="Generated figures">
+        <figure>
+          <img src="../reports/figures/fig_01_gpr_timeseries.png" alt="GPR time series">
+          <figcaption>Global GPR shock proxy generated from the sample pipeline.</figcaption>
+        </figure>
+        <figure>
+          <img src="../reports/figures/fig_02_em_dev_spread.png" alt="Return spread">
+          <figcaption>Emerging minus developed return spread in the sample panel.</figcaption>
+        </figure>
+        <figure>
+          <img src="../reports/figures/fig_03_local_projection.png" alt="Local projection">
+          <figcaption>Sample local-projection style response with HAC uncertainty bands.</figcaption>
+        </figure>
+        <figure>
+          <img src="../reports/figures/fig_04_gdelt_vs_gpr.png" alt="GDELT versus GPR">
+          <figcaption>Sample GDELT risk index compared with benchmark GPR.</figcaption>
+        </figure>
+        <figure>
+          <img src="../reports/figures/fig_05_forecast_comparison.png" alt="Forecast comparison">
+          <figcaption>Out-of-sample forecast comparison on deterministic sample data.</figcaption>
+        </figure>
+      </section>
+    </main>
+  </body>
+</html>

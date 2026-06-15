@@ -40,6 +40,17 @@ make figures
 make report
 ```
 
+On systems without GNU Make, run the equivalent Python task runner:
+
+```bash
+python scripts/run_task.py setup
+python scripts/run_task.py pipeline
+```
+
+The current default pipeline is sample mode. It writes deterministic sample
+data and reproducible outputs so reviewers can test the software without
+downloading restricted data or providing API keys.
+
 ## Expected outputs
 
 ```text
@@ -60,6 +71,13 @@ Run:
 ```bash
 make validate-data
 make test
+```
+
+Without `make`:
+
+```bash
+python scripts/run_task.py validate-data
+python scripts/run_task.py test
 ```
 
 Validation must check:

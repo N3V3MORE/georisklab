@@ -1,5 +1,12 @@
 # Methodology
 
+## Current implementation note
+
+The runnable default pipeline uses deterministic sample data. This validates the
+software workflow, output schemas, regressions, forecasts, figures, and report
+generation. It is not evidence for the research hypotheses until real public
+source data are supplied through the documented ingestion contracts.
+
 ## Identification logic
 
 The project should not claim clean causal identification from a simple return regression. The honest claim is narrower:

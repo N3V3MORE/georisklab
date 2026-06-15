@@ -61,6 +61,31 @@ make report
 make test
 ```
 
+If `make` is not installed, use the cross-platform runner:
+
+```bash
+python scripts/run_task.py setup
+python scripts/run_task.py pipeline
+python scripts/run_task.py test
+python scripts/run_task.py lint
+```
+
+The default pipeline uses deterministic sample data. It proves that the code,
+tables, figures, and report can be rebuilt without private data or API keys. It
+does not claim empirical findings until real source data are supplied.
+
+Generated public outputs:
+
+- `reports/tables/table_01_summary_stats.csv`
+- `reports/tables/table_02_baseline_regressions.csv`
+- `reports/tables/table_03_forecast_comparison.csv`
+- `reports/figures/fig_01_gpr_timeseries.png`
+- `reports/figures/fig_02_em_dev_spread.png`
+- `reports/figures/fig_03_local_projection.png`
+- `reports/figures/fig_04_gdelt_vs_gpr.png`
+- `reports/main_report.pdf`
+- `dashboard/index.html`
+
 ## Main documentation
 
 - [Project specification](docs/PROJECT_SPEC.md)
