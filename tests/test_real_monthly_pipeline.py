@@ -1,6 +1,7 @@
 import json
 import subprocess
 import sys
+from importlib import import_module
 from pathlib import Path
 
 import pandas as pd
@@ -124,10 +125,10 @@ def test_real_pipeline_runs_end_to_end_on_fixture_sources(tmp_path):
     ]:
         _run_script(root, *args)
 
-    regressions = pd.read_csv(
-        tmp_path / "reports" / "tables" / "table_02_baseline_regressions.csv"
-    )
-    forecasts = pd.read_csv(tmp_path / "reports" / "tables" / "table_03_forecast_comparison.csv")
+    tables = tmp_path / "reports" / "tables"
+    figures = tmp_path / "reports" / "figures"
+    regressions = pd.read_csv(tables / "table_02_baseline_regressions_real.csv")
+    forecasts = pd.read_csv(tables / "table_03_forecast_comparison_real.csv")
 
     assert "sample_global_cycle" not in set(regressions["term"])
     assert forecasts["model"].tolist() == [
@@ -135,8 +136,11 @@ def test_real_pipeline_runs_end_to_end_on_fixture_sources(tmp_path):
         "gpr_only",
         "regularized_gpr_only",
     ]
-    assert (tmp_path / "reports" / "figures" / "fig_05_forecast_comparison.png").exists()
-    assert (tmp_path / "reports" / "main_report.pdf").exists()
+    assert (figures / "fig_05_forecast_comparison_real.png").exists()
+    assert not (figures / "fig_04_gdelt_vs_gpr_real.png").exists()
+    assert not (tables / "table_02_baseline_regressions.csv").exists()
+    assert (tmp_path / "reports" / "main_report_real.pdf").exists()
+    assert not (tmp_path / "reports" / "main_report.pdf").exists()
 
 
 def test_real_report_text_identifies_user_supplied_data():
@@ -162,3 +166,42 @@ def test_real_report_text_identifies_user_supplied_data():
     assert "GeoRiskLab Real-Data V0.1 Report" in result.stdout
     assert "user-supplied local raw data" in result.stdout
     assert "deterministic sample data" not in result.stdout
+
+
+def test_real_report_metrics_include_baseline_regression_summary(monkeypatch):
+    root = Path(__file__).resolve().parents[1]
+    monkeypatch.syspath_prepend(str(root / "scripts"))
+    build_report = import_module("build_report")
+
+    panel = pd.DataFrame(
+        {
+            "date_month": pd.to_datetime(
+                ["2000-01-01", "2000-01-01", "2000-02-01", "2000-02-01"]
+            ),
+            "market_id": ["developed", "emerging", "developed", "emerging"],
+            "excess_return": [1.0, 2.0, 3.0, 1.0],
+            "spread_em_dev": [1.0, 1.0, -2.0, -2.0],
+        }
+    )
+    regressions = pd.DataFrame(
+        {
+            "horizon": [1],
+            "term": ["gpr_global_z"],
+            "estimate": [-0.25],
+            "std_error": [0.10],
+            "p_value": [0.04],
+        }
+    )
+
+    metrics = build_report.report_metrics(panel, regressions, "gpr_global_z")
+
+    assert metrics["sample_period"] == "2000-01-01 to 2000-02-01"
+    assert metrics["n_months"] == 2
+    assert metrics["mean_emerging_return"] == 1.5
+    assert metrics["mean_developed_return"] == 2.0
+    assert metrics["mean_spread_em_dev"] == -0.5
+    assert metrics["baseline_coefficient"] == -0.25
+    assert metrics["baseline_std_error"] == 0.10
+    assert metrics["baseline_p_value"] == 0.04
+    assert metrics["confidence_interval_95"] == (-0.446, -0.054)
+    assert "lower EM minus developed spread" in metrics["interpretation"]

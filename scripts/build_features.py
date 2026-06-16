@@ -12,6 +12,7 @@ add_project_root()
 
 from georisklab.features.panel import build_analysis_panel  # noqa: E402
 from georisklab.utils.config import get_project_paths  # noqa: E402
+from georisklab.utils.outputs import table_path  # noqa: E402
 
 
 def build_features(dataset: str = "sample", root: Path | None = None) -> None:
@@ -40,7 +41,7 @@ def build_features(dataset: str = "sample", root: Path | None = None) -> None:
         )
         .round(4)
     )
-    summary.to_csv(paths.reports_tables / "table_01_summary_stats.csv", index=False)
+    summary.to_csv(table_path(paths, "table_01_summary_stats.csv", dataset), index=False)
 
 
 def _dataset_files(dataset: str) -> dict[str, str]:

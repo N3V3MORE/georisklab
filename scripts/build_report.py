@@ -17,16 +17,25 @@ from _bootstrap import add_project_root
 add_project_root()
 
 from georisklab.utils.config import get_project_paths  # noqa: E402
+from georisklab.utils.outputs import report_path, table_path  # noqa: E402
 
 
-def build_report(dataset: str = "sample", root: Path | None = None) -> None:
+def build_report(
+    dataset: str = "sample",
+    root: Path | None = None,
+    shock_col: str = "gpr_global_z",
+) -> None:
     paths = get_project_paths(root)
     paths.ensure_output_dirs()
-    summary = pd.read_csv(paths.reports_tables / "table_01_summary_stats.csv")
-    forecasts = pd.read_csv(paths.reports_tables / "table_03_forecast_comparison.csv")
+    panel_name = "sample_analysis_panel.csv" if dataset == "sample" else "analysis_panel.csv"
+    panel = pd.read_csv(paths.data_processed / panel_name, parse_dates=["date_month"])
+    summary = pd.read_csv(table_path(paths, "table_01_summary_stats.csv", dataset))
+    regressions = pd.read_csv(table_path(paths, "table_02_baseline_regressions.csv", dataset))
+    forecasts = pd.read_csv(table_path(paths, "table_03_forecast_comparison.csv", dataset))
     text = report_text(dataset)
+    metrics = report_metrics(panel, regressions, shock_col)
 
-    with PdfPages(paths.root / "reports" / "main_report.pdf") as pdf:
+    with PdfPages(report_path(paths, dataset)) as pdf:
         fig = plt.figure(figsize=(8.27, 11.69))
         fig.text(0.1, 0.92, text["title"], fontsize=18, weight="bold")
         fig.text(
@@ -36,21 +45,27 @@ def build_report(dataset: str = "sample", root: Path | None = None) -> None:
             fontsize=10,
             wrap=True,
         )
-        fig.text(0.1, 0.78, "Summary statistics", fontsize=13, weight="bold")
-        fig.text(0.1, 0.73, summary.to_string(index=False), fontsize=8, family="monospace")
-        fig.text(0.1, 0.55, "Forecast comparison", fontsize=13, weight="bold")
+        fig.text(0.1, 0.79, "Empirical summary", fontsize=13, weight="bold")
+        fig.text(0.1, 0.74, _metrics_block(metrics), fontsize=8, family="monospace")
+        fig.text(0.1, 0.57, "Baseline regression", fontsize=13, weight="bold")
+        fig.text(0.1, 0.52, _baseline_block(metrics), fontsize=8, family="monospace")
+        fig.text(0.1, 0.44, "Interpretation", fontsize=13, weight="bold")
+        fig.text(0.1, 0.40, metrics["interpretation"], fontsize=9, wrap=True)
+        fig.text(0.1, 0.33, "Summary statistics", fontsize=13, weight="bold")
+        fig.text(0.1, 0.28, summary.to_string(index=False), fontsize=7, family="monospace")
+        fig.text(0.1, 0.20, "Forecast comparison", fontsize=13, weight="bold")
         fig.text(
             0.1,
-            0.5,
+            0.15,
             forecasts[["model", "rmse", "mae", "oos_r2"]].to_string(index=False),
-            fontsize=8,
+            fontsize=7,
             family="monospace",
         )
         fig.text(
             0.1,
-            0.25,
+            0.07,
             text["limitations"],
-            fontsize=10,
+            fontsize=8,
             wrap=True,
         )
         pdf.savefig(fig)
@@ -87,14 +102,77 @@ def report_text(dataset: str) -> dict[str, str]:
     raise ValueError("dataset must be 'sample' or 'real'")
 
 
+def report_metrics(panel: pd.DataFrame, regressions: pd.DataFrame, shock_col: str) -> dict:
+    dates = pd.to_datetime(panel["date_month"]).drop_duplicates().sort_values()
+    means = panel.groupby("market_id")["excess_return"].mean()
+    spread = panel.drop_duplicates("date_month")["spread_em_dev"].mean()
+    baseline = _baseline_row(regressions, shock_col)
+    estimate = float(baseline["estimate"])
+    std_error = float(baseline["std_error"])
+    lower = round(estimate - 1.96 * std_error, 3)
+    upper = round(estimate + 1.96 * std_error, 3)
+    return {
+        "sample_period": f"{dates.min().date().isoformat()} to {dates.max().date().isoformat()}",
+        "n_months": int(len(dates)),
+        "mean_emerging_return": round(float(means["emerging"]), 4),
+        "mean_developed_return": round(float(means["developed"]), 4),
+        "mean_spread_em_dev": round(float(spread), 4),
+        "baseline_coefficient": round(estimate, 4),
+        "baseline_std_error": round(std_error, 4),
+        "baseline_p_value": round(float(baseline["p_value"]), 4),
+        "confidence_interval_95": (lower, upper),
+        "interpretation": _interpret_regression(estimate, shock_col),
+    }
+
+
+def _baseline_row(regressions: pd.DataFrame, shock_col: str) -> pd.Series:
+    rows = regressions[(regressions["horizon"] == 1) & (regressions["term"] == shock_col)]
+    if rows.empty:
+        raise ValueError(f"baseline regression table has no horizon-1 row for {shock_col}")
+    return rows.iloc[0]
+
+
+def _interpret_regression(estimate: float, shock_col: str) -> str:
+    direction = "lower" if estimate < 0 else "higher"
+    magnitude = abs(round(estimate, 3))
+    return (
+        f"A one standard deviation increase in {shock_col} is associated with a "
+        f"{direction} EM minus developed spread of {magnitude} percentage points "
+        "over the next month. This is descriptive, not causal."
+    )
+
+
+def _metrics_block(metrics: dict) -> str:
+    rows = [
+        ("Sample period", metrics["sample_period"]),
+        ("Months", metrics["n_months"]),
+        ("Mean EM excess return", metrics["mean_emerging_return"]),
+        ("Mean developed excess return", metrics["mean_developed_return"]),
+        ("Mean EM-developed spread", metrics["mean_spread_em_dev"]),
+    ]
+    return "\n".join(f"{label}: {value}" for label, value in rows)
+
+
+def _baseline_block(metrics: dict) -> str:
+    rows = [
+        ("Coefficient", metrics["baseline_coefficient"]),
+        ("Std. error", metrics["baseline_std_error"]),
+        ("p-value", metrics["baseline_p_value"]),
+        ("95% CI", metrics["confidence_interval_95"]),
+    ]
+    return "\n".join(f"{label}: {value}" for label, value in rows)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Build the GeoRiskLab PDF report.")
     parser.add_argument("--dataset", choices=["sample", "real"], default="sample")
     parser.add_argument("--root", default=None)
+    parser.add_argument("--shock-col", default="gpr_global_z")
     args = parser.parse_args()
     build_report(
         dataset=args.dataset,
         root=Path(args.root) if args.root else None,
+        shock_col=args.shock_col,
     )
 
 

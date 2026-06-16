@@ -12,6 +12,7 @@ from _bootstrap import add_project_root
 add_project_root()
 
 from georisklab.utils.config import get_project_paths  # noqa: E402
+from georisklab.utils.outputs import table_path  # noqa: E402
 from georisklab.utils.validation import (  # noqa: E402
     assert_dates_are_month_start,
     assert_no_duplicate_keys,
@@ -50,7 +51,7 @@ def validate_data(dataset: str = "sample", root: Path | None = None) -> None:
     assert_no_duplicate_keys(panel, ["date_month", "market_id"])
 
     report = missingness_report(panel)
-    report.to_csv(paths.reports_tables / "table_00_missingness.csv", index=False)
+    report.to_csv(table_path(paths, "table_00_missingness.csv", dataset), index=False)
 
 
 def main() -> None:

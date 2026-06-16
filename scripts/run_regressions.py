@@ -12,6 +12,7 @@ add_project_root()
 
 from georisklab.econometrics.local_projection import run_local_projections  # noqa: E402
 from georisklab.utils.config import get_project_paths  # noqa: E402
+from georisklab.utils.outputs import table_path  # noqa: E402
 
 
 def run_regressions(
@@ -30,7 +31,10 @@ def run_regressions(
         horizons=horizons or [1, 3, 6],
         config={"shock_col": "gpr_global_z", "controls": controls},
     )
-    results.round(6).to_csv(paths.reports_tables / "table_02_baseline_regressions.csv", index=False)
+    results.round(6).to_csv(
+        table_path(paths, "table_02_baseline_regressions.csv", dataset),
+        index=False,
+    )
 
 
 def main() -> None:

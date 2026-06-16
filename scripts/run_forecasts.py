@@ -12,6 +12,7 @@ add_project_root()
 
 from georisklab.models.forecasting import forecast_metric_row  # noqa: E402
 from georisklab.utils.config import get_project_paths  # noqa: E402
+from georisklab.utils.outputs import table_path  # noqa: E402
 
 
 def run_forecasts(
@@ -39,7 +40,7 @@ def run_forecasts(
 
     rows = _forecast_rows(forecast_data, dataset, min_train_months)
     pd.DataFrame(rows).round(6).to_csv(
-        paths.reports_tables / "table_03_forecast_comparison.csv",
+        table_path(paths, "table_03_forecast_comparison.csv", dataset),
         index=False,
     )
 
