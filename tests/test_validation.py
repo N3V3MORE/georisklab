@@ -202,6 +202,8 @@ def test_validate_data_without_result_checks_allows_missing_forecast_table(
 @pytest.mark.parametrize(
     ("dataset", "filename"),
     [
+        ("sample", "table_02_baseline_regressions.csv"),
+        ("real", "table_02_baseline_regressions_real.csv"),
         ("sample", "table_03_forecast_comparison.csv"),
         ("real", "table_03_forecast_comparison_real.csv"),
     ],
@@ -214,6 +216,12 @@ def test_validate_data_requires_forecast_table_when_checking_results(
 ):
     validate_data = _validate_data_module(monkeypatch)
     _write_minimal_validation_inputs(tmp_path, dataset)
+    _write_minimal_result_tables(tmp_path, dataset)
+
+    if "table_02_" in filename:
+        _regression_table_path(tmp_path, dataset).unlink()
+    else:
+        _forecast_table_path(tmp_path, dataset).unlink()
 
     with pytest.raises(FileNotFoundError, match=filename):
         validate_data.validate_data(
@@ -232,9 +240,13 @@ def test_validate_data_checks_forecast_windows_when_checking_results(
 ):
     validate_data = _validate_data_module(monkeypatch)
     _write_minimal_validation_inputs(tmp_path, dataset)
+    _write_minimal_result_tables(tmp_path, dataset)
     pd.DataFrame(
         {
             "model": ["historical_mean", "gpr_only"],
+            "rmse": [1.0, 1.1],
+            "mae": [0.8, 0.9],
+            "oos_r2": [0.0, -0.1],
             "n_forecasts": [10, 8],
             "first_forecast_date": ["2020-01-01", "2020-03-01"],
             "last_forecast_date": ["2020-10-01", "2020-10-01"],
@@ -242,6 +254,34 @@ def test_validate_data_checks_forecast_windows_when_checking_results(
     ).to_csv(_forecast_table_path(tmp_path, dataset), index=False)
 
     with pytest.raises(ValueError, match="same forecast evaluation"):
+        validate_data.validate_data(
+            dataset=dataset,
+            root=tmp_path,
+            min_overlap_months=2,
+            check_results=True,
+        )
+
+
+@pytest.mark.parametrize("dataset", ["sample", "real"])
+def test_validate_data_rejects_duplicate_regression_keys_when_checking_results(
+    monkeypatch,
+    tmp_path,
+    dataset,
+):
+    validate_data = _validate_data_module(monkeypatch)
+    _write_minimal_validation_inputs(tmp_path, dataset)
+    _write_minimal_result_tables(tmp_path, dataset)
+    pd.DataFrame(
+        {
+            "horizon": [1, 1],
+            "term": ["gpr_change_z", "gpr_change_z"],
+            "estimate": [0.1, 0.2],
+            "std_error": [0.1, 0.1],
+            "p_value": [0.5, 0.4],
+        }
+    ).to_csv(_regression_table_path(tmp_path, dataset), index=False)
+
+    with pytest.raises(ValueError, match="duplicate"):
         validate_data.validate_data(
             dataset=dataset,
             root=tmp_path,
@@ -379,3 +419,32 @@ def _forecast_table_path(root: Path, dataset: str) -> Path:
         else "table_03_forecast_comparison_real.csv"
     )
     return root / "reports" / "tables" / filename
+
+
+def _regression_table_path(root: Path, dataset: str) -> Path:
+    filename = (
+        "table_02_baseline_regressions.csv"
+        if dataset == "sample"
+        else "table_02_baseline_regressions_real.csv"
+    )
+    return root / "reports" / "tables" / filename
+
+
+def _write_minimal_result_tables(root: Path, dataset: str) -> None:
+    pd.DataFrame(
+        {
+            "horizon": [1, 1],
+            "term": ["const", "gpr_change_z"],
+            "estimate": [0.0, 0.1],
+            "std_error": [0.1, 0.1],
+            "p_value": [0.5, 0.4],
+        }
+    ).to_csv(_regression_table_path(root, dataset), index=False)
+    pd.DataFrame(
+        {
+            "model": ["historical_mean", "gpr_only"],
+            "n_forecasts": [10, 10],
+            "first_forecast_date": ["2020-01-01", "2020-01-01"],
+            "last_forecast_date": ["2020-10-01", "2020-10-01"],
+        }
+    ).to_csv(_forecast_table_path(root, dataset), index=False)

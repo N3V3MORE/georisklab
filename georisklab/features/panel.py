@@ -18,11 +18,11 @@ def build_analysis_panel(
 
     panel = make_forward_returns(market_returns, [1, 3, 6])
     gpr_features = make_gpr_shock_features(gpr)
-    if gdelt["date_month"].duplicated().any():
-        raise ValueError("GDELT risk data must be unique by date_month before panel merge")
+    _validate_month_level_gdelt(gdelt)
     gdelt_features = gdelt[["date_month", "risk_index_raw", "risk_index_zscore"]].rename(
         columns={"risk_index_raw": "gdelt_risk_raw", "risk_index_zscore": "gdelt_risk_z"}
     )
+    _validate_month_level_macro_controls(macro_controls)
     macro_wide = (
         macro_controls.pivot_table(
             index="date_month",
@@ -68,8 +68,32 @@ def build_analysis_panel(
         .merge(macro_wide, on="date_month", how="left")
         .merge(spread, on="date_month", how="left")
     )
-    panel["neg_ret_1m"] = (panel["ret_fwd_1m"] < 0).astype(int)
+    panel["neg_ret_1m"] = _downside_indicator(panel["ret_fwd_1m"], threshold=0.0)
     tail_cutoff = panel["ret_fwd_1m"].quantile(0.1)
-    panel["left_tail_1m"] = (panel["ret_fwd_1m"] < tail_cutoff).astype(int)
+    panel["left_tail_1m"] = _downside_indicator(panel["ret_fwd_1m"], threshold=tail_cutoff)
 
     return panel.sort_values(["date_month", "market_id"]).reset_index(drop=True)
+
+
+def _validate_month_level_gdelt(gdelt: pd.DataFrame) -> None:
+    if gdelt["date_month"].duplicated().any():
+        raise ValueError(
+            "GDELT risk data must aggregate to one row per date_month before merging into "
+            "the developed/emerging aggregate panel"
+        )
+
+
+def _validate_month_level_macro_controls(macro_controls: pd.DataFrame) -> None:
+    duplicate_keys = macro_controls.duplicated(["date_month", "indicator_code"])
+    if duplicate_keys.any():
+        raise ValueError(
+            "Macro controls must aggregate to one row per date_month and indicator_code "
+            "before merging into the developed/emerging aggregate panel"
+        )
+
+
+def _downside_indicator(values: pd.Series, threshold: float) -> pd.Series:
+    result = pd.Series(pd.NA, index=values.index, dtype="Int64")
+    observed = values.notna()
+    result.loc[observed] = (values.loc[observed] < threshold).astype("Int64")
+    return result

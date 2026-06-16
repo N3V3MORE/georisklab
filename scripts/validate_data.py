@@ -154,10 +154,44 @@ def _validate_forward_return_missingness(panel: pd.DataFrame, horizons: list[int
 
 
 def _validate_result_outputs(paths, dataset: str) -> None:
+    regression_path = table_path(paths, "table_02_baseline_regressions.csv", dataset)
+    if not regression_path.exists():
+        raise FileNotFoundError(f"{regression_path.name} is missing; run make regressions first")
+    _validate_regression_outputs(pd.read_csv(regression_path))
+
     forecast_path = table_path(paths, "table_03_forecast_comparison.csv", dataset)
     if not forecast_path.exists():
         raise FileNotFoundError(f"{forecast_path.name} is missing; run make forecasts first")
-    _validate_forecast_windows(pd.read_csv(forecast_path))
+    _validate_forecast_outputs(pd.read_csv(forecast_path))
+
+
+def _validate_regression_outputs(regressions: pd.DataFrame) -> None:
+    ensure_columns(regressions, ["horizon", "term", "estimate", "std_error", "p_value"])
+    assert_no_duplicate_keys(regressions, ["horizon", "term"])
+    if regressions.empty:
+        raise ValueError("baseline regression table must contain at least one row")
+    if pd.to_numeric(regressions["std_error"], errors="raise").lt(0).any():
+        raise ValueError("baseline regression standard errors must be non-negative")
+
+
+def _validate_forecast_outputs(forecasts: pd.DataFrame) -> None:
+    ensure_columns(
+        forecasts,
+        [
+            "model",
+            "rmse",
+            "mae",
+            "oos_r2",
+            "n_forecasts",
+            "first_forecast_date",
+            "last_forecast_date",
+        ],
+    )
+    assert_no_duplicate_keys(forecasts, ["model"])
+    for column in ["rmse", "mae"]:
+        if pd.to_numeric(forecasts[column], errors="raise").lt(0).any():
+            raise ValueError(f"{column} must be non-negative")
+    _validate_forecast_windows(forecasts)
 
 
 def _validate_forecast_windows(forecasts: pd.DataFrame) -> None:

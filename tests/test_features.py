@@ -74,7 +74,52 @@ def test_build_analysis_panel_rejects_multi_country_gdelt_rows():
         }
     )
 
-    with pytest.raises(ValueError, match="GDELT.*unique by date_month"):
+    with pytest.raises(ValueError, match="aggregate to one row per date_month"):
+        build_analysis_panel(market_returns, gpr, gdelt, macro)
+
+
+def test_build_analysis_panel_rejects_multi_country_macro_controls():
+    market_returns = pd.DataFrame(
+        {
+            "date_month": list(pd.date_range("2020-01-01", periods=2, freq="MS")) * 2,
+            "market_id": ["developed", "developed", "emerging", "emerging"],
+            "market_class": ["developed", "developed", "emerging", "emerging"],
+            "excess_return": [1.0, 2.0, 1.5, 2.5],
+        }
+    )
+    gpr = pd.DataFrame(
+        {
+            "date_month": pd.date_range("2020-01-01", periods=2, freq="MS"),
+            "gpr_global": [100.0, 105.0],
+            "gprt_global": [60.0, 62.0],
+            "gpra_global": [40.0, 43.0],
+        }
+    )
+    gdelt = pd.DataFrame(
+        {
+            "date_month": pd.date_range("2020-01-01", periods=2, freq="MS"),
+            "country_iso3": ["GLB", "GLB"],
+            "risk_index_raw": [1.0, 2.0],
+            "risk_index_zscore": [-1.0, 1.0],
+        }
+    )
+    macro = pd.DataFrame(
+        {
+            "date_month": pd.to_datetime(
+                ["2020-01-01", "2020-01-01", "2020-02-01", "2020-02-01"]
+            ),
+            "country_iso3": ["USA", "BRA", "USA", "BRA"],
+            "indicator_code": [
+                "inflation_yoy",
+                "inflation_yoy",
+                "inflation_yoy",
+                "inflation_yoy",
+            ],
+            "value": [2.0, 4.0, 2.1, 4.1],
+        }
+    )
+
+    with pytest.raises(ValueError, match="aggregate to one row per date_month and indicator_code"):
         build_analysis_panel(market_returns, gpr, gdelt, macro)
 
 
@@ -203,3 +248,49 @@ def test_make_gpr_shock_features_adds_level_change_log_change_and_ar1_residual()
     assert pd.isna(result["gpr_change"].iloc[0])
     assert result["gpr_change"].iloc[1] == 5.0
     assert pd.isna(result["gpr_ar1_residual"].iloc[0])
+
+
+def test_build_analysis_panel_keeps_downside_labels_missing_when_forward_return_missing():
+    market_returns = pd.DataFrame(
+        {
+            "date_month": list(pd.date_range("2020-01-01", periods=3, freq="MS")) * 2,
+            "market_id": ["developed"] * 3 + ["emerging"] * 3,
+            "market_class": ["developed"] * 3 + ["emerging"] * 3,
+            "excess_return": [1.0, 2.0, 3.0, 0.5, 1.5, 2.5],
+        }
+    )
+    gpr = pd.DataFrame(
+        {
+            "date_month": pd.date_range("2020-01-01", periods=3, freq="MS"),
+            "gpr_global": [100.0, 105.0, 110.0],
+            "gprt_global": [60.0, 63.0, 66.0],
+            "gpra_global": [40.0, 42.0, 44.0],
+        }
+    )
+    gdelt = pd.DataFrame(
+        {
+            "date_month": pd.date_range("2020-01-01", periods=3, freq="MS"),
+            "country_iso3": ["GLB", "GLB", "GLB"],
+            "risk_index_raw": [0.0, 0.5, 1.0],
+            "risk_index_zscore": [-1.0, 0.0, 1.0],
+        }
+    )
+    macro = pd.DataFrame(
+        {
+            "date_month": pd.date_range("2020-01-01", periods=3, freq="MS"),
+            "country_iso3": ["GLB", "GLB", "GLB"],
+            "indicator_code": [
+                "sample_global_cycle",
+                "sample_global_cycle",
+                "sample_global_cycle",
+            ],
+            "value": [0.0, 0.1, 0.2],
+        }
+    )
+
+    result = build_analysis_panel(market_returns, gpr, gdelt, macro)
+    trailing = result["ret_fwd_1m"].isna()
+
+    assert trailing.any()
+    assert result.loc[trailing, "neg_ret_1m"].isna().all()
+    assert result.loc[trailing, "left_tail_1m"].isna().all()
