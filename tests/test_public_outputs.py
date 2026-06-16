@@ -45,3 +45,12 @@ def test_methodology_labels_ar1_residual_as_descriptive_full_sample():
     assert "gpr_ar1_residual_z" in methodology
     assert "full-sample descriptive residual shock" in methodology
     assert "not for real-time forecasting" in methodology
+
+
+def test_real_data_report_outputs_are_gitignored():
+    root = Path(__file__).resolve().parents[1]
+    gitignore = (root / ".gitignore").read_text(encoding="utf-8")
+
+    assert "reports/main_report_real.pdf" in gitignore
+    assert "reports/tables/*_real.csv" in gitignore
+    assert "reports/figures/*_real.png" in gitignore

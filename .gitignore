@@ -14,4 +14,7 @@ data/metadata/source_manifest_real.json
 data/processed/*
 !data/processed/sample_*.csv
 reports/*.pdf
+reports/main_report_real.pdf
+reports/tables/*_real.csv
+reports/figures/*_real.png
 .DS_Store
