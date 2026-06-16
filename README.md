@@ -8,14 +8,14 @@ GeoRiskLab turns a research question into a reproducible data product:
 
 > Do geopolitical risk shocks affect emerging and developed equity markets differently, and can public event or news data improve forecasts of returns, volatility, and downside risk?
 
-The first version is intentionally narrow. It focuses on monthly developed versus emerging equity returns, the Caldara-Iacoviello GPR index, a GDELT-based geopolitical event-intensity measure, and a small set of macro-financial controls.
+The first real-data milestone, V0.1a, focuses on monthly developed versus emerging equity returns and the Caldara-Iacoviello GPR index. GDELT event intensity and macro-financial controls are staged extensions.
 
 ## Minimum viable research product
 
 The project is successful when a reviewer can clone the repo, run a documented pipeline, and reproduce:
 
 1. A clean monthly panel from 1990 or 2000 onward.
-2. A GPR shock series and a GDELT event-intensity series.
+2. A GPR shock series, plus a staged GDELT event-intensity series that is synthetic in the sample pipeline and real starting in V0.1b.
 3. Baseline developed versus emerging market return results.
 4. At least one panel regression table once country-level data are added.
 5. At least one local-projection or event-study figure.
@@ -89,6 +89,11 @@ Real-data milestones are staged:
 - V0.1b: add a real GDELT event-intensity index.
 - V0.1c: add real macro controls.
 
+If `gdelt_country_monthly.csv` or `macro_controls_monthly.csv` is missing during a
+real feature build, the pipeline inserts explicit placeholders and prints a warning.
+Those placeholders are for pipeline completeness only and are excluded from real
+empirical claims.
+
 Return columns are monthly percentage points, not decimals. For Fama-French
 factor files, `Mkt-RF` becomes `excess_return`, `RF` becomes `risk_free_rate`,
 and `return_usd = excess_return + risk_free_rate`.
@@ -104,6 +109,7 @@ Generated public outputs:
 - `reports/figures/fig_02_em_dev_spread.png`
 - `reports/figures/fig_03_local_projection.png`
 - `reports/figures/fig_04_gdelt_vs_gpr.png`
+- `reports/figures/fig_05_forecast_comparison.png`
 - `reports/main_report.pdf`
 - `dashboard/index.html`
 

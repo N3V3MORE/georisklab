@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 from pathlib import Path
+import sys
 
 import pandas as pd
 
@@ -25,8 +26,13 @@ def build_features(dataset: str = "sample", root: Path | None = None) -> None:
         parse_dates=["date_month"],
     )
     gpr = pd.read_csv(paths.data_processed / files["gpr"], parse_dates=["date_month"])
-    gdelt = _read_optional_gdelt(paths.data_processed / files["gdelt"], gpr)
-    macro = _read_optional_macro(paths.data_processed / files["macro"], gpr)
+    gdelt, used_placeholder_gdelt = _read_optional_gdelt(paths.data_processed / files["gdelt"], gpr)
+    macro, used_placeholder_macro = _read_optional_macro(paths.data_processed / files["macro"], gpr)
+    _warn_on_placeholder_inputs(
+        dataset,
+        used_placeholder_gdelt=used_placeholder_gdelt,
+        used_placeholder_macro=used_placeholder_macro,
+    )
 
     panel = build_analysis_panel(market_returns, gpr, gdelt, macro)
     panel.to_csv(paths.data_processed / files["analysis_panel"], index=False)
@@ -64,33 +70,63 @@ def _dataset_files(dataset: str) -> dict[str, str]:
     raise ValueError("dataset must be 'sample' or 'real'")
 
 
-def _read_optional_gdelt(path, gpr: pd.DataFrame) -> pd.DataFrame:
+def _read_optional_gdelt(path, gpr: pd.DataFrame) -> tuple[pd.DataFrame, bool]:
     if path.exists():
-        return pd.read_csv(path, parse_dates=["date_month"])
-    return pd.DataFrame(
-        {
-            "date_month": gpr["date_month"],
-            "country_iso3": "GLB",
-            "risk_index_raw": 0.0,
-            "risk_index_zscore": 0.0,
-        }
+        return pd.read_csv(path, parse_dates=["date_month"]), False
+    return (
+        pd.DataFrame(
+            {
+                "date_month": gpr["date_month"],
+                "country_iso3": "GLB",
+                "risk_index_raw": 0.0,
+                "risk_index_zscore": 0.0,
+            }
+        ),
+        True,
     )
 
 
-def _read_optional_macro(path, gpr: pd.DataFrame) -> pd.DataFrame:
+def _read_optional_macro(path, gpr: pd.DataFrame) -> tuple[pd.DataFrame, bool]:
     if path.exists():
-        return pd.read_csv(path, parse_dates=["date_month"])
-    return pd.DataFrame(
-        {
-            "date_month": gpr["date_month"],
-            "country_iso3": "GLB",
-            "indicator_code": "sample_global_cycle",
-            "value": 0.0,
-            "frequency_original": "not_available",
-            "frequency_converted": "monthly",
-            "source": "real_pipeline_placeholder",
-            "source_download_date": "",
-        }
+        return pd.read_csv(path, parse_dates=["date_month"]), False
+    return (
+        pd.DataFrame(
+            {
+                "date_month": gpr["date_month"],
+                "country_iso3": "GLB",
+                "indicator_code": "sample_global_cycle",
+                "value": 0.0,
+                "frequency_original": "not_available",
+                "frequency_converted": "monthly",
+                "source": "real_pipeline_placeholder",
+                "source_download_date": "",
+            }
+        ),
+        True,
+    )
+
+
+def _warn_on_placeholder_inputs(
+    dataset: str,
+    *,
+    used_placeholder_gdelt: bool,
+    used_placeholder_macro: bool,
+) -> None:
+    if dataset != "real":
+        return
+    warnings = []
+    if used_placeholder_gdelt:
+        warnings.append("GDELT")
+    if used_placeholder_macro:
+        warnings.append("macro")
+    if not warnings:
+        return
+    joined = " and ".join(warnings)
+    print(
+        "WARNING: using placeholder "
+        f"{joined} inputs for the real feature build. These series are staged and excluded "
+        "from real empirical claims until real source files are supplied.",
+        file=sys.stderr,
     )
 
 
