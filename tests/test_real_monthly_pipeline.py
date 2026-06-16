@@ -204,6 +204,16 @@ def test_real_pipeline_runs_end_to_end_on_fixture_sources(tmp_path):
             "--min-train-months",
             "6",
         ],
+        [
+            "scripts/validate_data.py",
+            "--dataset",
+            "real",
+            "--root",
+            str(tmp_path),
+            "--min-overlap-months",
+            "24",
+            "--check-results",
+        ],
         ["scripts/make_figures.py", "--dataset", "real", "--root", str(tmp_path)],
         ["scripts/build_report.py", "--dataset", "real", "--root", str(tmp_path)],
     ]:

@@ -8,7 +8,7 @@ GeoRiskLab turns a research question into a reproducible data product:
 
 > Do geopolitical risk shocks affect emerging and developed equity markets differently, and can public event or news data improve forecasts of returns, volatility, and downside risk?
 
-The first version is intentionally narrow. It focuses on monthly developed versus emerging equity returns, the Caldara-Iacoviello GPR index, a GDELT-based geopolitical event-intensity measure, and a small set of macro-financial controls.
+The first real-data milestone, V0.1a, focuses on monthly developed versus emerging equity returns and the Caldara-Iacoviello GPR index. GDELT event intensity and macro-financial controls are staged extensions.
 
 ## Minimum viable research product
 
