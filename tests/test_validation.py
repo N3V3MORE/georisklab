@@ -183,6 +183,73 @@ def test_validate_real_manifest_requires_expected_names_and_local_hashes(
         validate_data._validate_metadata(path, "real")
 
 
+@pytest.mark.parametrize("dataset", ["sample", "real"])
+def test_validate_data_without_result_checks_allows_missing_forecast_table(
+    monkeypatch,
+    tmp_path,
+    dataset,
+):
+    validate_data = _validate_data_module(monkeypatch)
+    _write_minimal_validation_inputs(tmp_path, dataset)
+
+    validate_data.validate_data(
+        dataset=dataset,
+        root=tmp_path,
+        min_overlap_months=2,
+    )
+
+
+@pytest.mark.parametrize(
+    ("dataset", "filename"),
+    [
+        ("sample", "table_03_forecast_comparison.csv"),
+        ("real", "table_03_forecast_comparison_real.csv"),
+    ],
+)
+def test_validate_data_requires_forecast_table_when_checking_results(
+    monkeypatch,
+    tmp_path,
+    dataset,
+    filename,
+):
+    validate_data = _validate_data_module(monkeypatch)
+    _write_minimal_validation_inputs(tmp_path, dataset)
+
+    with pytest.raises(FileNotFoundError, match=filename):
+        validate_data.validate_data(
+            dataset=dataset,
+            root=tmp_path,
+            min_overlap_months=2,
+            check_results=True,
+        )
+
+
+@pytest.mark.parametrize("dataset", ["sample", "real"])
+def test_validate_data_checks_forecast_windows_when_checking_results(
+    monkeypatch,
+    tmp_path,
+    dataset,
+):
+    validate_data = _validate_data_module(monkeypatch)
+    _write_minimal_validation_inputs(tmp_path, dataset)
+    pd.DataFrame(
+        {
+            "model": ["historical_mean", "gpr_only"],
+            "n_forecasts": [10, 8],
+            "first_forecast_date": ["2020-01-01", "2020-03-01"],
+            "last_forecast_date": ["2020-10-01", "2020-10-01"],
+        }
+    ).to_csv(_forecast_table_path(tmp_path, dataset), index=False)
+
+    with pytest.raises(ValueError, match="same forecast evaluation"):
+        validate_data.validate_data(
+            dataset=dataset,
+            root=tmp_path,
+            min_overlap_months=2,
+            check_results=True,
+        )
+
+
 def test_validate_forecast_windows_requires_same_dates(monkeypatch):
     validate_data = _validate_data_module(monkeypatch)
     forecasts = pd.DataFrame(
@@ -210,3 +277,105 @@ def test_validate_forecast_windows_accepts_aligned_dates(monkeypatch):
     )
 
     validate_data._validate_forecast_windows(forecasts)
+
+
+def _write_minimal_validation_inputs(root: Path, dataset: str) -> None:
+    processed_dir = root / "data" / "processed"
+    metadata_dir = root / "data" / "metadata"
+    processed_dir.mkdir(parents=True)
+    metadata_dir.mkdir(parents=True)
+    (root / "reports" / "tables").mkdir(parents=True)
+
+    panel_name = "sample_analysis_panel.csv" if dataset == "sample" else "analysis_panel.csv"
+    _minimal_panel().to_csv(processed_dir / panel_name, index=False)
+
+    if dataset == "sample":
+        (metadata_dir / "source_manifest.json").write_text("{}", encoding="utf-8")
+        return
+
+    (metadata_dir / "source_manifest_real.json").write_text(
+        json.dumps(
+            {
+                "sources": [
+                    {
+                        "source_name": "Caldara-Iacoviello GPR",
+                        "raw_file_path": str(root / "data" / "raw" / "gpr.csv"),
+                        "file_hash_sha256": "abc",
+                    },
+                    {
+                        "source_name": "Kenneth French Developed Factors",
+                        "raw_file_path": str(root / "data" / "raw" / "dev.zip"),
+                        "file_hash_sha256": "def",
+                    },
+                    {
+                        "source_name": "Kenneth French Emerging Factors",
+                        "raw_file_path": str(root / "data" / "raw" / "em.zip"),
+                        "file_hash_sha256": "ghi",
+                    },
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+    _minimal_gpr().to_csv(processed_dir / "gpr_monthly.csv", index=False)
+    _minimal_returns().to_csv(processed_dir / "market_returns_monthly.csv", index=False)
+
+
+def _minimal_panel() -> pd.DataFrame:
+    dates = pd.date_range("2020-01-01", periods=2, freq="MS")
+    rows = []
+    for market_id in ["developed", "emerging"]:
+        rows.extend(
+            [
+                {
+                    "date_month": dates[0],
+                    "market_id": market_id,
+                    "market_class": market_id,
+                    "excess_return": 1.0,
+                    "ret_fwd_1m": 0.5,
+                    "gpr_change_z": 0.1,
+                    "gdelt_risk_z": 0.2,
+                },
+                {
+                    "date_month": dates[1],
+                    "market_id": market_id,
+                    "market_class": market_id,
+                    "excess_return": 1.1,
+                    "ret_fwd_1m": None,
+                    "gpr_change_z": 0.0,
+                    "gdelt_risk_z": 0.1,
+                },
+            ]
+        )
+    return pd.DataFrame(rows)
+
+
+def _minimal_gpr() -> pd.DataFrame:
+    return pd.DataFrame(
+        {
+            "date_month": pd.date_range("2020-01-01", periods=2, freq="MS"),
+            "gpr_global": [100.0, 101.0],
+        }
+    )
+
+
+def _minimal_returns() -> pd.DataFrame:
+    dates = pd.date_range("2020-01-01", periods=2, freq="MS")
+    return pd.DataFrame(
+        {
+            "date_month": [dates[0], dates[0], dates[1], dates[1]],
+            "market_id": ["developed", "emerging", "developed", "emerging"],
+            "return_usd": [1.0, 1.5, 1.1, 1.6],
+            "risk_free_rate": [0.1, 0.1, 0.1, 0.1],
+            "excess_return": [0.9, 1.4, 1.0, 1.5],
+        }
+    )
+
+
+def _forecast_table_path(root: Path, dataset: str) -> Path:
+    filename = (
+        "table_03_forecast_comparison.csv"
+        if dataset == "sample"
+        else "table_03_forecast_comparison_real.csv"
+    )
+    return root / "reports" / "tables" / filename

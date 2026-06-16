@@ -30,7 +30,7 @@ validate-data:
 	python scripts/validate_data.py --dataset $(DATASET)
 
 validate-results:
-	python scripts/validate_data.py --dataset $(DATASET)
+	python scripts/validate_data.py --dataset $(DATASET) --check-results
 
 pipeline: data-monthly features validate-data regressions forecasts validate-results figures report
 

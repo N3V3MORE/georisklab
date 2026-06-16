@@ -26,7 +26,7 @@ TASKS = {
     "figures": [[sys.executable, "scripts/make_figures.py"]],
     "report": [[sys.executable, "scripts/build_report.py", "--dataset", "sample"]],
     "validate-data": [[sys.executable, "scripts/validate_data.py"]],
-    "validate-results": [[sys.executable, "scripts/validate_data.py"]],
+    "validate-results": [[sys.executable, "scripts/validate_data.py", "--check-results"]],
     "test": [[sys.executable, "-m", "pytest"]],
     "lint": [[sys.executable, "-m", "ruff", "check", "."]],
 }
@@ -60,7 +60,13 @@ TASKS.update(
             [sys.executable, "scripts/validate_data.py", "--dataset", "real"]
         ],
         "validate-results-real": [
-            [sys.executable, "scripts/validate_data.py", "--dataset", "real"]
+            [
+                sys.executable,
+                "scripts/validate_data.py",
+                "--dataset",
+                "real",
+                "--check-results",
+            ]
         ],
         "regressions-real": [
             [sys.executable, "scripts/run_regressions.py", "--dataset", "real"]

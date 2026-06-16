@@ -1,3 +1,4 @@
+from importlib import import_module
 from pathlib import Path
 
 
@@ -29,6 +30,25 @@ def test_makefile_has_real_pipeline_targets():
         "data-real features validate-data regressions forecasts validate-results figures report"
         in makefile
     )
+
+
+def test_validation_targets_distinguish_data_from_results(monkeypatch):
+    root = Path(__file__).resolve().parents[1]
+    makefile = (root / "Makefile").read_text(encoding="utf-8")
+
+    assert "validate-data:\n\tpython scripts/validate_data.py --dataset $(DATASET)\n" in makefile
+    assert (
+        "validate-results:\n\tpython scripts/validate_data.py "
+        "--dataset $(DATASET) --check-results\n"
+    ) in makefile
+
+    monkeypatch.syspath_prepend(str(root / "scripts"))
+    run_task = import_module("run_task")
+
+    assert "--check-results" not in run_task.TASKS["validate-data"][0]
+    assert "--check-results" in run_task.TASKS["validate-results"][0]
+    assert "--check-results" not in run_task.TASKS["validate-data-real"][0]
+    assert "--check-results" in run_task.TASKS["validate-results-real"][0]
 
 
 def test_ci_runs_sample_pipeline_before_tests():

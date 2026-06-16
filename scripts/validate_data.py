@@ -31,6 +31,7 @@ def validate_data(
     dataset: str = "sample",
     root: Path | None = None,
     min_overlap_months: int = 120,
+    check_results: bool = False,
 ) -> None:
     paths = get_project_paths(root)
     paths.ensure_output_dirs()
@@ -68,9 +69,9 @@ def validate_data(
             parse_dates=["date_month"],
         )
         _validate_real_source_frames(gpr, returns, min_overlap_months=min_overlap_months)
-        forecast_path = table_path(paths, "table_03_forecast_comparison.csv", dataset)
-        if forecast_path.exists():
-            _validate_forecast_windows(pd.read_csv(forecast_path))
+
+    if check_results:
+        _validate_result_outputs(paths, dataset)
 
     report = missingness_report(panel)
     report.to_csv(table_path(paths, "table_00_missingness.csv", dataset), index=False)
@@ -81,11 +82,13 @@ def main() -> None:
     parser.add_argument("--dataset", choices=["sample", "real"], default="sample")
     parser.add_argument("--root", default=None)
     parser.add_argument("--min-overlap-months", type=int, default=120)
+    parser.add_argument("--check-results", action="store_true")
     args = parser.parse_args()
     validate_data(
         dataset=args.dataset,
         root=Path(args.root) if args.root else None,
         min_overlap_months=args.min_overlap_months,
+        check_results=args.check_results,
     )
 
 
@@ -148,6 +151,13 @@ def _validate_forward_return_missingness(panel: pd.DataFrame, horizons: list[int
             allowed = [False] * max(len(group) - horizon, 0) + [True] * min(horizon, len(group))
             if missing.tolist() != allowed:
                 raise ValueError(f"{column} missing values are only final horizon rows")
+
+
+def _validate_result_outputs(paths, dataset: str) -> None:
+    forecast_path = table_path(paths, "table_03_forecast_comparison.csv", dataset)
+    if not forecast_path.exists():
+        raise FileNotFoundError(f"{forecast_path.name} is missing; run make forecasts first")
+    _validate_forecast_windows(pd.read_csv(forecast_path))
 
 
 def _validate_forecast_windows(forecasts: pd.DataFrame) -> None:
