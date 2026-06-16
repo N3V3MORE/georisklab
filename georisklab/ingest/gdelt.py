@@ -54,18 +54,18 @@ def build_gdelt_country_month(events: pd.DataFrame, filters: dict) -> pd.DataFra
         .sort_values(keys)
     )
 
-    for event_type, output_column in EVENT_TYPES.items():
-        counts = (
-            df.loc[df["event_type"] == event_type]
-            .groupby(keys)
-            .size()
-            .rename(output_column)
-            .reset_index()
-        )
-        monthly = monthly.merge(counts, on=keys, how="left")
-        monthly[output_column] = monthly[output_column].fillna(0).astype(int)
-
+    event_counts = (
+        df.groupby([*keys, "event_type"])
+        .size()
+        .unstack(fill_value=0)
+        .rename(columns=EVENT_TYPES)
+    )
     risk_columns = list(EVENT_TYPES.values())
+    for output_column in risk_columns:
+        if output_column not in event_counts.columns:
+            event_counts[output_column] = 0
+    monthly = monthly.merge(event_counts[risk_columns].astype(int).reset_index(), on=keys)
+
     monthly["risk_index_raw"] = np.log1p(monthly[risk_columns].sum(axis=1))
     monthly["risk_index_zscore"] = monthly.groupby("country_iso3", group_keys=False)[
         "risk_index_raw"
