@@ -2,7 +2,12 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from georisklab.models.forecasting import expanding_window_forecast, forecast_metric_row
+from georisklab.models.forecasting import (
+    ForecastModelSpec,
+    expanding_window_forecast,
+    forecast_metric_row,
+    forecast_metric_rows,
+)
 from georisklab.models.metrics import evaluate_forecasts
 from georisklab.models.splits import make_time_splits
 
@@ -102,3 +107,65 @@ def test_forecast_metric_row_historical_mean_oos_r2_is_zero():
     metrics = forecast_metric_row("historical_mean", df, "target", [], 3)
 
     assert metrics["oos_r2"] == 0.0
+    assert metrics["n_forecasts"] == 2
+    assert metrics["first_forecast_date"] == "2020-04-01"
+    assert metrics["last_forecast_date"] == "2020-05-01"
+
+
+def test_forecast_metric_rows_aligns_standardized_and_unstandardized_models():
+    df = pd.DataFrame(
+        {
+            "date_month": pd.date_range("2020-01-01", periods=8, freq="MS"),
+            "target": [1.0, 1.5, 2.0, 2.5, 2.7, 3.0, 3.2, 3.4],
+            "shock": [10.0, 11.0, 13.0, 15.0, 16.0, 18.0, 21.0, 23.0],
+        }
+    )
+
+    rows = forecast_metric_rows(
+        df,
+        "target",
+        [
+            ForecastModelSpec("historical_mean", []),
+            ForecastModelSpec(
+                "shock_model",
+                ["shock"],
+                standardize_feature_cols=["shock"],
+                standardize_min_periods=2,
+            ),
+        ],
+        min_train_months=2,
+    )
+
+    assert {row["n_forecasts"] for row in rows} == {4}
+    assert {row["first_forecast_date"] for row in rows} == {"2020-05-01"}
+    assert {row["last_forecast_date"] for row in rows} == {"2020-08-01"}
+    assert all(row["forecast_window_aligned"] for row in rows)
+
+
+def test_forecast_metric_rows_uses_common_historical_mean_benchmark():
+    df = pd.DataFrame(
+        {
+            "date_month": pd.date_range("2020-01-01", periods=8, freq="MS"),
+            "target": [1.0, 1.5, 2.0, 2.5, 2.7, 3.0, 3.2, 3.4],
+            "shock": [10.0, 11.0, 13.0, 15.0, 16.0, 18.0, 21.0, 23.0],
+        }
+    )
+
+    rows = forecast_metric_rows(
+        df,
+        "target",
+        [
+            ForecastModelSpec("historical_mean", []),
+            ForecastModelSpec(
+                "shock_model",
+                ["shock"],
+                standardize_feature_cols=["shock"],
+                standardize_min_periods=2,
+            ),
+        ],
+        min_train_months=2,
+    )
+
+    by_model = {row["model"]: row for row in rows}
+    assert by_model["historical_mean"]["oos_r2"] == 0.0
+    assert by_model["shock_model"]["benchmark_model"] == "historical_mean"

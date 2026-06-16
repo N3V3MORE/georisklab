@@ -25,11 +25,12 @@ def run_regressions(
     panel_name = "sample_analysis_panel.csv" if dataset == "sample" else "analysis_panel.csv"
     panel = pd.read_csv(paths.data_processed / panel_name, parse_dates=["date_month"])
     controls = ["sample_global_cycle"] if dataset == "sample" else []
+    shock_col = "gpr_change_z"
 
     results = run_local_projections(
         panel,
         horizons=horizons or [1, 3, 6],
-        config={"shock_col": "gpr_global_z", "controls": controls},
+        config={"shock_col": shock_col, "controls": controls},
     )
     results.round(6).to_csv(
         table_path(paths, "table_02_baseline_regressions.csv", dataset),

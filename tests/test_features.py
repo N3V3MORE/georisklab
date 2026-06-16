@@ -2,7 +2,11 @@ import numpy as np
 import pandas as pd
 
 from georisklab.features.returns import make_forward_returns
-from georisklab.features.shocks import expanding_standardize_shocks, standardize_shocks
+from georisklab.features.shocks import (
+    expanding_standardize_shocks,
+    make_gpr_shock_features,
+    standardize_shocks,
+)
 
 
 def test_make_forward_returns_uses_only_future_returns():
@@ -82,3 +86,31 @@ def test_expanding_standardize_shocks_defaults_to_missing_until_min_history():
     result = expanding_standardize_shocks(df, ["gpr_global"])
 
     assert result["gpr_global_z"].iloc[:24].isna().all()
+
+
+def test_make_gpr_shock_features_adds_level_change_log_change_and_ar1_residual():
+    df = pd.DataFrame(
+        {
+            "date_month": pd.date_range("2020-01-01", periods=5, freq="MS"),
+            "gpr_global": [100.0, 105.0, 111.0, 118.0, 126.0],
+            "gprt_global": [60.0, 63.0, 67.0, 70.0, 75.0],
+            "gpra_global": [40.0, 42.0, 44.0, 48.0, 51.0],
+        }
+    )
+
+    result = make_gpr_shock_features(df)
+
+    for column in [
+        "gpr_level_z",
+        "gpr_change",
+        "gpr_change_z",
+        "gpr_log_change",
+        "gpr_log_change_z",
+        "gpr_ar1_residual",
+        "gpr_ar1_residual_z",
+    ]:
+        assert column in result.columns
+    assert result["gpr_global_z"].equals(result["gpr_level_z"])
+    assert pd.isna(result["gpr_change"].iloc[0])
+    assert result["gpr_change"].iloc[1] == 5.0
+    assert pd.isna(result["gpr_ar1_residual"].iloc[0])

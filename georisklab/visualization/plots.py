@@ -30,7 +30,8 @@ def plot_market_spread(df: pd.DataFrame):
 
 
 def plot_local_projection(results: pd.DataFrame):
-    data = results[results["term"] == "gpr_global_z"].sort_values("horizon")
+    shock_term = "gpr_change_z" if "gpr_change_z" in set(results["term"]) else "gpr_global_z"
+    data = results[results["term"] == shock_term].sort_values("horizon")
     fig, ax = plt.subplots(figsize=(7, 4.5))
     ax.errorbar(
         data["horizon"],

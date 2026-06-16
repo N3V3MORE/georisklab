@@ -109,7 +109,15 @@ def test_real_pipeline_runs_end_to_end_on_fixture_sources(tmp_path):
     )
     for args in [
         ["scripts/build_features.py", "--dataset", "real", "--root", str(tmp_path)],
-        ["scripts/validate_data.py", "--dataset", "real", "--root", str(tmp_path)],
+        [
+            "scripts/validate_data.py",
+            "--dataset",
+            "real",
+            "--root",
+            str(tmp_path),
+            "--min-overlap-months",
+            "24",
+        ],
         ["scripts/run_regressions.py", "--dataset", "real", "--root", str(tmp_path)],
         [
             "scripts/run_forecasts.py",
@@ -131,11 +139,14 @@ def test_real_pipeline_runs_end_to_end_on_fixture_sources(tmp_path):
     forecasts = pd.read_csv(tables / "table_03_forecast_comparison_real.csv")
 
     assert "sample_global_cycle" not in set(regressions["term"])
+    assert "gpr_change_z" in set(regressions["term"])
     assert forecasts["model"].tolist() == [
         "historical_mean",
         "gpr_only",
         "regularized_gpr_only",
     ]
+    assert (tables / "table_00_missingness_real.csv").exists()
+    assert (tables / "table_01_summary_stats_real.csv").exists()
     assert (figures / "fig_05_forecast_comparison_real.png").exists()
     assert not (figures / "fig_04_gdelt_vs_gpr_real.png").exists()
     assert not (tables / "table_02_baseline_regressions.csv").exists()

@@ -1,9 +1,20 @@
+from dataclasses import dataclass
+
 import numpy as np
 import pandas as pd
 
 from georisklab.features.shocks import expanding_standardize_shocks
 from georisklab.models.metrics import evaluate_forecasts
 from georisklab.models.splits import make_time_splits
+
+
+@dataclass(frozen=True)
+class ForecastModelSpec:
+    model: str
+    feature_cols: list[str]
+    ridge_alpha: float = 0.0
+    standardize_feature_cols: list[str] | None = None
+    standardize_min_periods: int = 24
 
 
 def expanding_window_forecast(
@@ -78,13 +89,72 @@ def forecast_metric_row(
         standardize_feature_cols=standardize_feature_cols,
         standardize_min_periods=standardize_min_periods,
     )
+    if forecasts.empty:
+        raise ValueError(f"no forecasts produced for {model}")
     metrics = evaluate_forecasts(
         forecasts["actual"],
         forecasts["predicted"],
         task="regression",
         benchmark_pred=forecasts["benchmark_predicted"],
     )
-    return {"model": model, **metrics, "n_forecasts": len(forecasts)}
+    return {
+        "model": model,
+        **metrics,
+        "n_forecasts": len(forecasts),
+        "first_forecast_date": _date_text(forecasts["date_month"].min()),
+        "last_forecast_date": _date_text(forecasts["date_month"].max()),
+        "forecast_window_aligned": True,
+        "benchmark_model": "historical_mean",
+    }
+
+
+def forecast_metric_rows(
+    df: pd.DataFrame,
+    target_col: str,
+    model_specs: list[ForecastModelSpec],
+    min_train_months: int,
+    benchmark_model: str = "historical_mean",
+) -> list[dict]:
+    forecasts_by_model = {
+        spec.model: expanding_window_forecast(
+            df,
+            target_col,
+            spec.feature_cols,
+            min_train_months=min_train_months,
+            ridge_alpha=spec.ridge_alpha,
+            standardize_feature_cols=spec.standardize_feature_cols,
+            standardize_min_periods=spec.standardize_min_periods,
+        )
+        for spec in model_specs
+    }
+    if benchmark_model not in forecasts_by_model:
+        raise ValueError(f"benchmark model '{benchmark_model}' is not in model_specs")
+
+    common_dates = _common_forecast_dates(forecasts_by_model)
+    benchmark = _aligned_forecasts(forecasts_by_model[benchmark_model], common_dates)
+    benchmark_pred = benchmark["predicted"].to_numpy(dtype=float)
+
+    rows = []
+    for spec in model_specs:
+        forecasts = _aligned_forecasts(forecasts_by_model[spec.model], common_dates)
+        metrics = evaluate_forecasts(
+            forecasts["actual"],
+            forecasts["predicted"],
+            task="regression",
+            benchmark_pred=benchmark_pred,
+        )
+        rows.append(
+            {
+                "model": spec.model,
+                **metrics,
+                "n_forecasts": len(forecasts),
+                "first_forecast_date": _date_text(common_dates[0]),
+                "last_forecast_date": _date_text(common_dates[-1]),
+                "forecast_window_aligned": True,
+                "benchmark_model": benchmark_model,
+            }
+        )
+    return rows
 
 
 def _predict_next(
@@ -109,3 +179,26 @@ def _predict_next(
 
 def _with_intercept(values: np.ndarray) -> np.ndarray:
     return np.column_stack([np.ones(len(values)), values])
+
+
+def _common_forecast_dates(forecasts_by_model: dict[str, pd.DataFrame]) -> list[pd.Timestamp]:
+    date_sets = [
+        set(pd.to_datetime(forecasts["date_month"]))
+        for forecasts in forecasts_by_model.values()
+        if not forecasts.empty
+    ]
+    if len(date_sets) != len(forecasts_by_model):
+        raise ValueError("all models must produce at least one forecast")
+    common = sorted(set.intersection(*date_sets))
+    if not common:
+        raise ValueError("forecast models have no common evaluation dates")
+    return common
+
+
+def _aligned_forecasts(forecasts: pd.DataFrame, dates: list[pd.Timestamp]) -> pd.DataFrame:
+    result = forecasts[forecasts["date_month"].isin(dates)].sort_values("date_month")
+    return result.reset_index(drop=True)
+
+
+def _date_text(value) -> str:
+    return pd.Timestamp(value).date().isoformat()

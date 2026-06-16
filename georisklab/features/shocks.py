@@ -1,3 +1,4 @@
+import numpy as np
 import pandas as pd
 
 from georisklab.utils.validation import ensure_columns
@@ -9,13 +10,33 @@ def standardize_shocks(df: pd.DataFrame, cols: list[str]) -> pd.DataFrame:
 
     for column in cols:
         values = pd.to_numeric(result[column], errors="raise")
-        std = values.std(ddof=0)
-        if std == 0 or pd.isna(std):
-            result[f"{column}_z"] = 0.0
-        else:
-            result[f"{column}_z"] = (values - values.mean()) / std
+        result[f"{column}_z"] = _zscore(values)
 
     return result
+
+
+def make_gpr_shock_features(df: pd.DataFrame) -> pd.DataFrame:
+    ensure_columns(df, ["date_month", "gpr_global", "gprt_global", "gpra_global"])
+    result = df.copy()
+    result["_original_order"] = range(len(result))
+    result = result.sort_values("date_month").reset_index(drop=True)
+    values = pd.to_numeric(result["gpr_global"], errors="raise").astype(float)
+
+    result["gpr_level_z"] = _zscore(values)
+    result["gpr_global_z"] = result["gpr_level_z"]
+    result["gpr_change"] = values.diff()
+    result["gpr_change_z"] = _zscore(result["gpr_change"])
+    result["gpr_log_change"] = np.log(values).diff()
+    result["gpr_log_change_z"] = _zscore(result["gpr_log_change"])
+    result["gpr_ar1_residual"] = _ar1_residual(values)
+    result["gpr_ar1_residual_z"] = _zscore(result["gpr_ar1_residual"])
+    result["gprt_global_z"] = _zscore(result["gprt_global"])
+    result["gpra_global_z"] = _zscore(result["gpra_global"])
+    return (
+        result.sort_values("_original_order")
+        .drop(columns=["_original_order"])
+        .reset_index(drop=True)
+    )
 
 
 def expanding_standardize_shocks(
@@ -55,3 +76,25 @@ def _prior_expanding_zscore(series: pd.Series, min_periods: int) -> pd.Series:
     zscore = (values - mean) / std
     zscore = zscore.replace([float("inf"), float("-inf")], pd.NA)
     return zscore.where(~(has_history & zscore.isna()), 0.0).where(has_history)
+
+
+def _zscore(values: pd.Series) -> pd.Series:
+    numeric = pd.to_numeric(values, errors="raise").astype(float)
+    std = numeric.std(ddof=0)
+    if std == 0 or pd.isna(std):
+        return numeric.where(numeric.isna(), 0.0)
+    return (numeric - numeric.mean()) / std
+
+
+def _ar1_residual(values: pd.Series) -> pd.Series:
+    lagged = values.shift(1)
+    data = pd.DataFrame({"value": values, "lagged": lagged}).dropna()
+    residuals = pd.Series(np.nan, index=values.index, dtype=float)
+    if len(data) < 2:
+        return residuals
+
+    x = np.column_stack([np.ones(len(data)), data["lagged"].to_numpy(dtype=float)])
+    y = data["value"].to_numpy(dtype=float)
+    beta = np.linalg.pinv(x.T @ x) @ x.T @ y
+    residuals.loc[data.index] = y - x @ beta
+    return residuals

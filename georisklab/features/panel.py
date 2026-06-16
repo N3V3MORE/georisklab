@@ -1,7 +1,7 @@
 import pandas as pd
 
 from georisklab.features.returns import make_forward_returns
-from georisklab.features.shocks import standardize_shocks
+from georisklab.features.shocks import make_gpr_shock_features
 from georisklab.utils.validation import ensure_columns
 
 
@@ -17,7 +17,7 @@ def build_analysis_panel(
     ensure_columns(macro_controls, ["date_month", "indicator_code", "value"])
 
     panel = make_forward_returns(market_returns, [1, 3, 6])
-    gpr_features = standardize_shocks(gpr, ["gpr_global", "gprt_global", "gpra_global"])
+    gpr_features = make_gpr_shock_features(gpr)
     gdelt_features = gdelt[["date_month", "risk_index_raw", "risk_index_zscore"]].rename(
         columns={"risk_index_raw": "gdelt_risk_raw", "risk_index_zscore": "gdelt_risk_z"}
     )
@@ -47,7 +47,14 @@ def build_analysis_panel(
                     "gpr_global",
                     "gprt_global",
                     "gpra_global",
+                    "gpr_level_z",
                     "gpr_global_z",
+                    "gpr_change",
+                    "gpr_change_z",
+                    "gpr_log_change",
+                    "gpr_log_change_z",
+                    "gpr_ar1_residual",
+                    "gpr_ar1_residual_z",
                     "gprt_global_z",
                     "gpra_global_z",
                 ]

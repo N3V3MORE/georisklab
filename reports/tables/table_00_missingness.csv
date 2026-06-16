@@ -13,7 +13,14 @@ ret_fwd_6m,12,0.02
 gpr_global,0,0.0
 gprt_global,0,0.0
 gpra_global,0,0.0
+gpr_level_z,0,0.0
 gpr_global_z,0,0.0
+gpr_change,2,0.0033
+gpr_change_z,2,0.0033
+gpr_log_change,2,0.0033
+gpr_log_change_z,2,0.0033
+gpr_ar1_residual,2,0.0033
+gpr_ar1_residual_z,2,0.0033
 gprt_global_z,0,0.0
 gpra_global_z,0,0.0
 gdelt_risk_raw,0,0.0

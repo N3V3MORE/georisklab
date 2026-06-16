@@ -23,7 +23,7 @@ from georisklab.utils.outputs import report_path, table_path  # noqa: E402
 def build_report(
     dataset: str = "sample",
     root: Path | None = None,
-    shock_col: str = "gpr_global_z",
+    shock_col: str | None = None,
 ) -> None:
     paths = get_project_paths(root)
     paths.ensure_output_dirs()
@@ -33,7 +33,7 @@ def build_report(
     regressions = pd.read_csv(table_path(paths, "table_02_baseline_regressions.csv", dataset))
     forecasts = pd.read_csv(table_path(paths, "table_03_forecast_comparison.csv", dataset))
     text = report_text(dataset)
-    metrics = report_metrics(panel, regressions, shock_col)
+    metrics = report_metrics(panel, regressions, shock_col or "gpr_change_z")
 
     with PdfPages(report_path(paths, dataset)) as pdf:
         fig = plt.figure(figsize=(8.27, 11.69))
@@ -167,7 +167,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Build the GeoRiskLab PDF report.")
     parser.add_argument("--dataset", choices=["sample", "real"], default="sample")
     parser.add_argument("--root", default=None)
-    parser.add_argument("--shock-col", default="gpr_global_z")
+    parser.add_argument("--shock-col", default=None)
     args = parser.parse_args()
     build_report(
         dataset=args.dataset,

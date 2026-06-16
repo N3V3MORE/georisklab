@@ -10,7 +10,7 @@ from _bootstrap import add_project_root
 
 add_project_root()
 
-from georisklab.models.forecasting import forecast_metric_row  # noqa: E402
+from georisklab.models.forecasting import ForecastModelSpec, forecast_metric_rows  # noqa: E402
 from georisklab.utils.config import get_project_paths  # noqa: E402
 from georisklab.utils.outputs import table_path  # noqa: E402
 
@@ -34,7 +34,7 @@ def run_forecasts(
     if dataset == "sample":
         feature_cols = ["date_month", "sample_global_cycle", "gpr_global", "gdelt_risk_raw"]
     else:
-        feature_cols = ["date_month", "gpr_global"]
+        feature_cols = ["date_month", "gpr_change"]
     features = panel.drop_duplicates("date_month")[feature_cols]
     forecast_data = target.merge(features, on="date_month").dropna()
 
@@ -51,74 +51,54 @@ def _forecast_rows(
     min_train_months: int,
 ) -> list[dict]:
     if dataset == "real":
-        return [
-            forecast_metric_row(
-                "historical_mean",
-                forecast_data,
-                "spread_fwd_1m",
-                [],
-                min_train_months,
-            ),
-            forecast_metric_row(
-                "gpr_only",
-                forecast_data,
-                "spread_fwd_1m",
-                ["gpr_global"],
-                min_train_months,
-                standardize_feature_cols=["gpr_global"],
-            ),
-            forecast_metric_row(
-                "regularized_gpr_only",
-                forecast_data,
-                "spread_fwd_1m",
-                ["gpr_global"],
-                min_train_months,
-                ridge_alpha=1.0,
-                standardize_feature_cols=["gpr_global"],
-            ),
-        ]
+        return forecast_metric_rows(
+            forecast_data,
+            "spread_fwd_1m",
+            [
+                ForecastModelSpec("historical_mean", []),
+                ForecastModelSpec(
+                    "gpr_only",
+                    ["gpr_change"],
+                    standardize_feature_cols=["gpr_change"],
+                ),
+                ForecastModelSpec(
+                    "regularized_gpr_only",
+                    ["gpr_change"],
+                    ridge_alpha=1.0,
+                    standardize_feature_cols=["gpr_change"],
+                ),
+            ],
+            min_train_months,
+        )
 
-    return [
-        forecast_metric_row(
-            "historical_mean",
-            forecast_data,
-            "spread_fwd_1m",
-            [],
-            min_train_months,
-        ),
-        forecast_metric_row(
-            "macro_only",
-            forecast_data,
-            "spread_fwd_1m",
-            ["sample_global_cycle"],
-            min_train_months,
-        ),
-        forecast_metric_row(
-            "macro_plus_gpr",
-            forecast_data,
-            "spread_fwd_1m",
-            ["sample_global_cycle", "gpr_global"],
-            min_train_months,
-            standardize_feature_cols=["gpr_global"],
-        ),
-        forecast_metric_row(
-            "macro_plus_gpr_gdelt",
-            forecast_data,
-            "spread_fwd_1m",
-            ["sample_global_cycle", "gpr_global", "gdelt_risk_raw"],
-            min_train_months,
-            standardize_feature_cols=["gpr_global", "gdelt_risk_raw"],
-        ),
-        forecast_metric_row(
-            "regularized_linear",
-            forecast_data,
-            "spread_fwd_1m",
-            ["sample_global_cycle", "gpr_global", "gdelt_risk_raw"],
-            min_train_months,
-            ridge_alpha=1.0,
-            standardize_feature_cols=["gpr_global", "gdelt_risk_raw"],
-        ),
-    ]
+    return forecast_metric_rows(
+        forecast_data,
+        "spread_fwd_1m",
+        [
+            ForecastModelSpec(
+                "historical_mean",
+                [],
+            ),
+            ForecastModelSpec("macro_only", ["sample_global_cycle"]),
+            ForecastModelSpec(
+                "macro_plus_gpr",
+                ["sample_global_cycle", "gpr_global"],
+                standardize_feature_cols=["gpr_global"],
+            ),
+            ForecastModelSpec(
+                "macro_plus_gpr_gdelt",
+                ["sample_global_cycle", "gpr_global", "gdelt_risk_raw"],
+                standardize_feature_cols=["gpr_global", "gdelt_risk_raw"],
+            ),
+            ForecastModelSpec(
+                "regularized_linear",
+                ["sample_global_cycle", "gpr_global", "gdelt_risk_raw"],
+                ridge_alpha=1.0,
+                standardize_feature_cols=["gpr_global", "gdelt_risk_raw"],
+            ),
+        ],
+        min_train_months,
+    )
 
 
 def main() -> None:
