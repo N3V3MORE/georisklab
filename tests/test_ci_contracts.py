@@ -57,3 +57,11 @@ def test_ci_runs_sample_pipeline_before_tests():
 
     assert "run: make pipeline" in workflow
     assert workflow.index("run: make pipeline") < workflow.index("run: pytest")
+
+
+def test_ci_runs_declared_python_versions():
+    root = Path(__file__).resolve().parents[1]
+    workflow = (root / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+
+    assert 'python-version: ["3.10", "3.11"]' in workflow
+    assert "python-version: ${{ matrix.python-version }}" in workflow
