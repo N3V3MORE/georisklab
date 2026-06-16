@@ -54,3 +54,11 @@ def test_real_data_report_outputs_are_gitignored():
     assert "reports/main_report_real.pdf" in gitignore
     assert "reports/tables/*_real.csv" in gitignore
     assert "reports/figures/*_real.png" in gitignore
+
+
+def test_reproducibility_docs_reference_existing_environment_file():
+    root = Path(__file__).resolve().parents[1]
+    reproducibility = (root / "docs" / "REPRODUCIBILITY.md").read_text(encoding="utf-8")
+
+    assert "environment.yml" in reproducibility
+    assert (root / "environment.yml").exists()
