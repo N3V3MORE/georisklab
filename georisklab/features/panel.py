@@ -13,11 +13,13 @@ def build_analysis_panel(
 ) -> pd.DataFrame:
     ensure_columns(market_returns, ["date_month", "market_id", "market_class", "excess_return"])
     ensure_columns(gpr, ["date_month", "gpr_global", "gprt_global", "gpra_global"])
-    ensure_columns(gdelt, ["date_month", "risk_index_zscore"])
+    ensure_columns(gdelt, ["date_month", "risk_index_raw", "risk_index_zscore"])
     ensure_columns(macro_controls, ["date_month", "indicator_code", "value"])
 
     panel = make_forward_returns(market_returns, [1, 3, 6])
     gpr_features = make_gpr_shock_features(gpr)
+    if gdelt["date_month"].duplicated().any():
+        raise ValueError("GDELT risk data must be unique by date_month before panel merge")
     gdelt_features = gdelt[["date_month", "risk_index_raw", "risk_index_zscore"]].rename(
         columns={"risk_index_raw": "gdelt_risk_raw", "risk_index_zscore": "gdelt_risk_z"}
     )
