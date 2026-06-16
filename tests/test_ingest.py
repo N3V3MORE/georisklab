@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from georisklab.ingest import market_returns
 from georisklab.ingest.gdelt import build_gdelt_country_month
 from georisklab.ingest.gpr import load_caldara_iacoviello_gpr, load_gpr
 from georisklab.ingest.market_returns import (
@@ -92,15 +93,19 @@ def test_load_caldara_iacoviello_gpr_maps_real_columns(tmp_path):
     ]
 
 
-def test_load_fama_french_factor_returns_parses_zip_fixture(tmp_path):
-    path = tmp_path / "developed.zip"
-    csv_text = (
+def _fama_french_csv_text() -> str:
+    return (
         "This file has a preamble\n"
         ",Mkt-RF,SMB,HML,RF\n"
         "202001,1.20,0.00,0.00,0.05\n"
         "202002,-2.55,0.00,0.00,0.05\n"
         "Annual Factors: January-December\n"
     )
+
+
+def test_load_fama_french_factor_returns_parses_zip_fixture(tmp_path):
+    path = tmp_path / "developed.zip"
+    csv_text = _fama_french_csv_text()
     with zipfile.ZipFile(path, "w") as archive:
         archive.writestr("developed.csv", csv_text)
 
@@ -117,6 +122,43 @@ def test_load_fama_french_factor_returns_parses_zip_fixture(tmp_path):
     assert df["excess_return"].tolist() == [1.2, -2.55]
     assert df["risk_free_rate"].tolist() == [0.05, 0.05]
     assert df["return_usd"].tolist() == [1.25, -2.5]
+
+
+def test_load_fama_french_factor_returns_rejects_zip_with_multiple_csvs(tmp_path):
+    path = tmp_path / "developed.zip"
+    with zipfile.ZipFile(path, "w") as archive:
+        archive.writestr("developed.csv", _fama_french_csv_text())
+        archive.writestr("extra.csv", _fama_french_csv_text())
+
+    with pytest.raises(ValueError, match="exactly one CSV"):
+        load_fama_french_factor_returns(
+            str(path),
+            market_id="developed",
+            market_class="developed",
+        )
+
+
+def test_load_fama_french_factor_returns_rejects_oversized_csv_member(
+    tmp_path,
+    monkeypatch,
+):
+    path = tmp_path / "developed.zip"
+    csv_text = _fama_french_csv_text()
+    monkeypatch.setattr(
+        market_returns,
+        "FAMA_FRENCH_MAX_CSV_BYTES",
+        len(csv_text.encode("utf-8")) - 1,
+        raising=False,
+    )
+    with zipfile.ZipFile(path, "w") as archive:
+        archive.writestr("developed.csv", csv_text)
+
+    with pytest.raises(ValueError, match="too large"):
+        load_fama_french_factor_returns(
+            str(path),
+            market_id="developed",
+            market_class="developed",
+        )
 
 
 def test_build_gdelt_country_month_counts_documented_event_types():

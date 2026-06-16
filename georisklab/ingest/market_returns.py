@@ -11,6 +11,7 @@ from georisklab.utils.validation import (
 )
 
 RETURN_COLUMNS = ["return_usd", "risk_free_rate", "excess_return"]
+FAMA_FRENCH_MAX_CSV_BYTES = 5 * 1024 * 1024
 REQUIRED_COLUMNS = [
     "date_month",
     "market_id",
@@ -65,10 +66,19 @@ def _normalize_market_returns(df: pd.DataFrame) -> pd.DataFrame:
 def _read_text_source(source: str) -> str:
     if source.lower().endswith(".zip"):
         with zipfile.ZipFile(source) as archive:
-            csv_names = [name for name in archive.namelist() if name.lower().endswith(".csv")]
-            if not csv_names:
+            csv_members = [
+                info
+                for info in archive.infolist()
+                if not info.is_dir() and info.filename.lower().endswith(".csv")
+            ]
+            if not csv_members:
                 raise ValueError("Fama-French zip file contains no CSV file")
-            return archive.read(csv_names[0]).decode("utf-8-sig")
+            if len(csv_members) > 1:
+                raise ValueError("Fama-French zip file must contain exactly one CSV member")
+            csv_member = csv_members[0]
+            if csv_member.file_size > FAMA_FRENCH_MAX_CSV_BYTES:
+                raise ValueError("Fama-French CSV member is too large")
+            return archive.read(csv_member).decode("utf-8-sig")
     return pd.io.common.get_handle(source, mode="r").handle.read()
 
 
