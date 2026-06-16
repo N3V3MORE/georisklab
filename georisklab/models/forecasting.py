@@ -43,12 +43,9 @@ def expanding_window_forecast(
         .sort_values("date_month")
         .reset_index(drop=True)
     )
-    splits = make_time_splits(data["date_month"], min_train_months, test_window)
     rows = []
 
-    for split in splits:
-        train = data[data["date_month"].isin(split.train_dates)]
-        test = data[data["date_month"].isin(split.test_dates)]
+    for train, test in iter_expanding_window_frames(data, min_train_months, test_window):
         prediction = _predict_next(train, test, target_col, feature_cols, ridge_alpha)
         benchmark_prediction = np.repeat(train[target_col].mean(), len(test))
         for date, actual, predicted, benchmark in zip(
@@ -68,6 +65,21 @@ def expanding_window_forecast(
             )
 
     return pd.DataFrame(rows)
+
+
+def iter_expanding_window_frames(
+    data: pd.DataFrame,
+    min_train_months: int,
+    test_window: int = 1,
+):
+    dates = pd.to_datetime(data["date_month"]).reset_index(drop=True)
+    if dates.duplicated().any():
+        raise ValueError("forecast data must contain one row per date_month")
+
+    for split in make_time_splits(dates, min_train_months, test_window):
+        train_end = len(split.train_dates)
+        test_end = train_end + len(split.test_dates)
+        yield data.iloc[:train_end], data.iloc[train_end:test_end]
 
 
 def forecast_metric_row(
