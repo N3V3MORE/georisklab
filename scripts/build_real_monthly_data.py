@@ -58,6 +58,7 @@ def build_real_monthly_data(config_path: Path, root: Path | None = None) -> None
         market_class="emerging",
     )
     returns = _filter_period(pd.concat([developed, emerging], ignore_index=True), period)
+    _validate_spread_market_coverage(returns)
     returns.to_csv(paths.data_processed / "market_returns_monthly.csv", index=False)
 
     spread = (
@@ -132,6 +133,31 @@ def _filter_period(df: pd.DataFrame, period: dict) -> pd.DataFrame:
     if period.get("end"):
         result = result[result["date_month"] <= pd.Timestamp(period["end"])]
     return result.reset_index(drop=True)
+
+
+def _validate_spread_market_coverage(returns: pd.DataFrame) -> None:
+    required_markets = ["developed", "emerging"]
+    coverage = (
+        returns.assign(_present=1)
+        .pivot_table(
+            index="date_month",
+            columns="market_id",
+            values="_present",
+            aggfunc="max",
+        )
+        .reindex(columns=required_markets)
+    )
+    incomplete_months = coverage.isna().any(axis=1)
+    if coverage.empty or incomplete_months.any():
+        missing_months = [
+            pd.Timestamp(date_month).strftime("%Y-%m-%d")
+            for date_month in coverage.index[incomplete_months]
+        ]
+        detail = f" Incomplete months: {', '.join(missing_months[:5])}." if missing_months else ""
+        raise ValueError(
+            "filtered real returns must contain both developed and emerging markets "
+            f"for every retained month.{detail}"
+        )
 
 
 def main() -> None:

@@ -1,6 +1,7 @@
 import json
 import subprocess
 import sys
+import zipfile
 from importlib import import_module
 from pathlib import Path
 
@@ -41,6 +42,68 @@ def _run_script(root: Path, *args: str) -> None:
         check=False,
     )
     assert result.returncode == 0, result.stderr
+
+
+def _write_fama_french_zip(path: Path, rows: list[str]) -> Path:
+    text = "\n".join(
+        [
+            "This file has a preamble",
+            ",Mkt-RF,SMB,HML,RF",
+            *rows,
+            "Annual Factors: January-December",
+            "",
+        ]
+    )
+    with zipfile.ZipFile(path, "w") as archive:
+        archive.writestr(path.with_suffix(".csv").name, text)
+    return path
+
+
+def test_real_monthly_pipeline_rejects_incomplete_market_month_pairs(tmp_path):
+    root = Path(__file__).resolve().parents[1]
+    fixtures = root / "tests" / "fixtures"
+    emerging_zip = _write_fama_french_zip(
+        tmp_path / "fama_french_emerging_missing_month.zip",
+        ["200001,1.60,0.00,0.00,0.05"],
+    )
+    config = tmp_path / "sources.yml"
+    config.write_text(
+        "\n".join(
+            [
+                "gpr:",
+                f"  path_or_url: {fixtures / 'gpr_tiny.csv'}",
+                "  loader: caldara_iacoviello",
+                "",
+                "fama_french:",
+                f"  developed_zip: {fixtures / 'fama_french_developed_tiny.zip'}",
+                f"  emerging_zip: {emerging_zip}",
+                "",
+                "sample_period:",
+                '  start: "2000-01-01"',
+                '  end: "2000-02-01"',
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            "scripts/build_real_monthly_data.py",
+            "--config",
+            str(config),
+            "--root",
+            str(tmp_path),
+        ],
+        cwd=root,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode != 0
+    assert "ValueError" in result.stderr
+    assert "both developed and emerging markets for every retained month" in result.stderr
 
 
 def test_real_monthly_pipeline_runs_on_fixture_sources(tmp_path):
