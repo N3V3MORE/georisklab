@@ -65,3 +65,10 @@ def test_ci_runs_declared_python_versions():
 
     assert 'python-version: ["3.10", "3.11"]' in workflow
     assert "python-version: ${{ matrix.python-version }}" in workflow
+
+
+def test_ci_uses_read_only_repository_permissions():
+    root = Path(__file__).resolve().parents[1]
+    workflow = (root / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+
+    assert "permissions:\n  contents: read\n" in workflow
