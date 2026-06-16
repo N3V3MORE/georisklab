@@ -6,6 +6,7 @@ from importlib import import_module
 from pathlib import Path
 
 import pandas as pd
+import pytest
 
 
 def _write_fixture_config(tmp_path: Path) -> Path:
@@ -104,6 +105,18 @@ def test_real_monthly_pipeline_rejects_incomplete_market_month_pairs(tmp_path):
     assert result.returncode != 0
     assert "ValueError" in result.stderr
     assert "both developed and emerging markets for every retained month" in result.stderr
+
+
+def test_resolve_source_rejects_unsupported_url_schemes(monkeypatch):
+    root = Path(__file__).resolve().parents[1]
+    monkeypatch.syspath_prepend(str(root / "scripts"))
+    build_real_monthly_data = import_module("build_real_monthly_data")
+
+    assert build_real_monthly_data._resolve_source("https://example.test/source.csv", root) == (
+        "https://example.test/source.csv"
+    )
+    with pytest.raises(ValueError, match="unsupported source URL scheme"):
+        build_real_monthly_data._resolve_source("file:///tmp/source.csv", root)
 
 
 def test_real_monthly_pipeline_runs_on_fixture_sources(tmp_path):

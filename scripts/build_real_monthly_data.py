@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 from pathlib import Path
+from urllib.parse import urlparse
 
 import pandas as pd
 import yaml
@@ -121,6 +122,9 @@ def _load_config(config_path: Path) -> dict:
 
 def _resolve_source(path_or_url: str, root: Path) -> Path | str:
     if "://" in path_or_url:
+        scheme = urlparse(path_or_url).scheme.lower()
+        if scheme not in {"http", "https"}:
+            raise ValueError(f"unsupported source URL scheme: {scheme}")
         return path_or_url
     path = Path(path_or_url)
     return path if path.is_absolute() else root / path
