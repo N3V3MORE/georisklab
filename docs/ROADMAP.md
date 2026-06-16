@@ -1,5 +1,40 @@
 # Roadmap
 
+This file is the durable milestone tracker. Historical implementation plans have
+been folded into this roadmap and the reproducibility guide so there is one
+place for project direction and one place for run instructions.
+
+## Current V0.1 release track
+
+### V0.1a: Aggregate real-data benchmark
+
+Acceptance:
+
+- Real Caldara-Iacoviello GPR is loaded from a local user-supplied source.
+- Real developed/emerging Fama-French returns are loaded from local zip files.
+- Baseline spread regressions, forecast comparisons, figures, and a short PDF
+  report are generated.
+- GDELT and macro controls are explicit placeholders and excluded from real
+  empirical claims.
+
+### V0.1b: Real GDELT extension
+
+Acceptance:
+
+- Real GDELT country-month event intensity is built for a documented country
+  universe.
+- Event filters and weighting are documented.
+- The GDELT index is compared with benchmark GPR.
+
+### V0.1c: Real macro controls
+
+Acceptance:
+
+- Real country-month macro controls are loaded from public sources.
+- Controls are merged without silently collapsing country-level values into
+  aggregate rows.
+- Baseline results are rerun with controls and limitations updated.
+
 ## Milestone 0: Repo skeleton
 
 Acceptance:

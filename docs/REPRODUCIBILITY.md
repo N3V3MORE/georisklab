@@ -39,6 +39,7 @@ make regressions
 make forecasts
 make figures
 make report
+make validate-results
 make pipeline
 ```
 
@@ -47,6 +48,7 @@ On systems without GNU Make, run the equivalent Python task runner:
 ```bash
 python scripts/run_task.py setup
 python scripts/run_task.py pipeline
+python scripts/run_task.py validate-results
 ```
 
 The current default pipeline is sample mode. It writes deterministic sample
@@ -66,12 +68,14 @@ Then run:
 ```bash
 make data-real
 make pipeline-real
+make validate-results DATASET=real
 ```
 
 Without `make`:
 
 ```bash
 python scripts/run_task.py pipeline-real
+python scripts/run_task.py validate-results-real
 ```
 
 The real pipeline reads local raw files from `data/raw/` and writes:
@@ -102,7 +106,18 @@ reports/figures/fig_01_gpr_timeseries.png
 reports/figures/fig_02_em_dev_spread.png
 reports/figures/fig_03_local_projection.png
 reports/figures/fig_04_gdelt_vs_gpr.png
+reports/figures/fig_05_forecast_comparison.png
 reports/main_report.pdf
+```
+
+The V0.1a real-data snapshot also keeps derived experiment results in git:
+
+```text
+reports/v0_1a_findings.md
+reports/tables/table_02_baseline_regressions_real.csv
+reports/tables/table_03_forecast_comparison_real.csv
+reports/figures/fig_03_local_projection_real.png
+reports/main_report_real.pdf
 ```
 
 ## Validation checks
@@ -111,6 +126,7 @@ Run:
 
 ```bash
 make validate-data
+make validate-results
 make test
 ```
 
@@ -118,6 +134,7 @@ Without `make`:
 
 ```bash
 python scripts/run_task.py validate-data
+python scripts/run_task.py validate-results
 python scripts/run_task.py test
 ```
 
@@ -129,6 +146,7 @@ Validation must check:
 4. No missing source metadata.
 5. Expected value ranges for returns and indexes.
 6. Stable output filenames.
+7. Result-table schemas and aligned forecast evaluation windows.
 
 ## Deterministic outputs
 

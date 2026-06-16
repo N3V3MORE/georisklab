@@ -4,6 +4,10 @@
 
 The project can be public when all criteria below are satisfied.
 
+V0.1 is staged. V0.1a covers real GPR plus aggregate developed/emerging returns.
+Real GDELT and real macro controls are later milestones and must not be implied
+by V0.1a empirical claims.
+
 ### Documentation
 
 - README explains what the project does, why it matters, how to run it, and what the main findings are.
@@ -32,9 +36,10 @@ The project can be public when all criteria below are satisfied.
 
 ### GDELT
 
-- Event filters are documented.
-- Country-month aggregation works.
-- Index is compared with GPR.
+- V0.1a: placeholders are explicit and excluded from real empirical claims.
+- V0.1b: event filters are documented.
+- V0.1b: country-month aggregation works.
+- V0.1b: index is compared with GPR.
 - Limitations are stated clearly.
 
 ### Forecasting
