@@ -49,23 +49,25 @@ def build_report(
         fig.text(0.1, 0.74, _metrics_block(metrics), fontsize=8, family="monospace")
         fig.text(0.1, 0.57, "Baseline regression", fontsize=13, weight="bold")
         fig.text(0.1, 0.52, _baseline_block(metrics), fontsize=8, family="monospace")
-        fig.text(0.1, 0.44, "Interpretation", fontsize=13, weight="bold")
-        fig.text(0.1, 0.40, metrics["interpretation"], fontsize=9, wrap=True)
-        fig.text(0.1, 0.33, "Summary statistics", fontsize=13, weight="bold")
-        fig.text(0.1, 0.28, summary.to_string(index=False), fontsize=7, family="monospace")
-        fig.text(0.1, 0.20, "Forecast comparison", fontsize=13, weight="bold")
+        fig.text(0.1, 0.44, "Horizon response", fontsize=13, weight="bold")
+        fig.text(0.1, 0.39, _horizon_block(metrics), fontsize=7, family="monospace")
+        fig.text(0.1, 0.31, "Interpretation", fontsize=13, weight="bold")
+        fig.text(0.1, 0.27, metrics["interpretation"], fontsize=8, wrap=True)
+        fig.text(0.1, 0.21, "Summary statistics", fontsize=13, weight="bold")
+        fig.text(0.1, 0.16, summary.to_string(index=False), fontsize=6, family="monospace")
+        fig.text(0.1, 0.10, "Forecast comparison", fontsize=13, weight="bold")
         fig.text(
             0.1,
-            0.15,
+            0.06,
             forecasts[["model", "rmse", "mae", "oos_r2"]].to_string(index=False),
-            fontsize=7,
+            fontsize=6,
             family="monospace",
         )
         fig.text(
             0.1,
-            0.07,
+            0.02,
             text["limitations"],
-            fontsize=8,
+            fontsize=6,
             wrap=True,
         )
         pdf.savefig(fig)
@@ -121,6 +123,7 @@ def report_metrics(panel: pd.DataFrame, regressions: pd.DataFrame, shock_col: st
         "baseline_std_error": round(std_error, 4),
         "baseline_p_value": round(float(baseline["p_value"]), 4),
         "confidence_interval_95": (lower, upper),
+        "horizon_regressions": _horizon_rows(regressions, shock_col),
         "interpretation": _interpret_regression(estimate, shock_col),
     }
 
@@ -161,6 +164,37 @@ def _baseline_block(metrics: dict) -> str:
         ("95% CI", metrics["confidence_interval_95"]),
     ]
     return "\n".join(f"{label}: {value}" for label, value in rows)
+
+
+def _horizon_rows(regressions: pd.DataFrame, shock_col: str) -> list[dict]:
+    rows = []
+    data = regressions[regressions["term"] == shock_col].sort_values("horizon")
+    for _, row in data.iterrows():
+        estimate = round(float(row["estimate"]), 4)
+        std_error = round(float(row["std_error"]), 4)
+        rows.append(
+            {
+                "horizon": f"{int(row['horizon'])}m",
+                "estimate": estimate,
+                "std_error": std_error,
+                "p_value": round(float(row["p_value"]), 4),
+                "confidence_interval_95": (
+                    round(estimate - 1.96 * std_error, 3),
+                    round(estimate + 1.96 * std_error, 3),
+                ),
+            }
+        )
+    return rows
+
+
+def _horizon_block(metrics: dict) -> str:
+    rows = ["Horizon | Estimate | Std. error | p-value | 95% CI"]
+    for row in metrics["horizon_regressions"]:
+        rows.append(
+            f"{row['horizon']:>7} | {row['estimate']:>8} | {row['std_error']:>10} | "
+            f"{row['p_value']:>7} | {row['confidence_interval_95']}"
+        )
+    return "\n".join(rows)
 
 
 def main() -> None:

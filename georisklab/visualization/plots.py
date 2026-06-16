@@ -6,11 +6,11 @@ import matplotlib.pyplot as plt  # noqa: E402
 import pandas as pd  # noqa: E402
 
 
-def plot_gpr_timeseries(df: pd.DataFrame):
+def plot_gpr_timeseries(df: pd.DataFrame, shock_col: str = "gpr_change_z"):
     fig, ax = plt.subplots(figsize=(9, 4.5))
-    ax.plot(df["date_month"], df["gpr_global_z"], color="#1f77b4", linewidth=1.8)
+    ax.plot(df["date_month"], df[shock_col], color="#1f77b4", linewidth=1.8)
     ax.axhline(0, color="#444444", linewidth=0.8)
-    ax.set_title("Global geopolitical risk shock proxy")
+    ax.set_title("Global geopolitical risk shock")
     ax.set_ylabel("z-score")
     ax.set_xlabel("")
     fig.tight_layout()

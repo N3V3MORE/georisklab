@@ -196,11 +196,11 @@ def test_real_report_metrics_include_baseline_regression_summary(monkeypatch):
     )
     regressions = pd.DataFrame(
         {
-            "horizon": [1],
-            "term": ["gpr_global_z"],
-            "estimate": [-0.25],
-            "std_error": [0.10],
-            "p_value": [0.04],
+            "horizon": [1, 3, 6],
+            "term": ["gpr_global_z", "gpr_global_z", "gpr_global_z"],
+            "estimate": [-0.25, -0.50, -0.75],
+            "std_error": [0.10, 0.20, 0.30],
+            "p_value": [0.04, 0.03, 0.02],
         }
     )
 
@@ -215,4 +215,27 @@ def test_real_report_metrics_include_baseline_regression_summary(monkeypatch):
     assert metrics["baseline_std_error"] == 0.10
     assert metrics["baseline_p_value"] == 0.04
     assert metrics["confidence_interval_95"] == (-0.446, -0.054)
+    assert metrics["horizon_regressions"] == [
+        {
+            "horizon": "1m",
+            "estimate": -0.25,
+            "std_error": 0.1,
+            "p_value": 0.04,
+            "confidence_interval_95": (-0.446, -0.054),
+        },
+        {
+            "horizon": "3m",
+            "estimate": -0.5,
+            "std_error": 0.2,
+            "p_value": 0.03,
+            "confidence_interval_95": (-0.892, -0.108),
+        },
+        {
+            "horizon": "6m",
+            "estimate": -0.75,
+            "std_error": 0.3,
+            "p_value": 0.02,
+            "confidence_interval_95": (-1.338, -0.162),
+        },
+    ]
     assert "lower EM minus developed spread" in metrics["interpretation"]

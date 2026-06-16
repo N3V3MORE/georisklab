@@ -7,10 +7,13 @@ def test_makefile_has_full_pipeline_target():
 
     assert (
         ".PHONY: setup data-monthly data-real features regressions forecasts figures "
-        "report validate-data pipeline pipeline-real test lint"
+        "report validate-data validate-results pipeline pipeline-real test lint"
     ) in makefile
     assert "pipeline:" in makefile
-    assert "data-monthly features validate-data regressions forecasts figures report" in makefile
+    assert (
+        "data-monthly features validate-data regressions forecasts validate-results figures report"
+        in makefile
+    )
 
 
 def test_makefile_has_real_pipeline_targets():
@@ -20,8 +23,12 @@ def test_makefile_has_real_pipeline_targets():
     assert "data-real:" in makefile
     assert "python scripts/build_real_monthly_data.py --config config/sources.yml" in makefile
     assert "python scripts/build_report.py --dataset $(DATASET)" in makefile
+    assert "validate-results:" in makefile
     assert "pipeline-real:" in makefile
-    assert "data-real features validate-data regressions forecasts figures report" in makefile
+    assert (
+        "data-real features validate-data regressions forecasts validate-results figures report"
+        in makefile
+    )
 
 
 def test_ci_runs_sample_pipeline_before_tests():

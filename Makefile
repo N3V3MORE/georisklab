@@ -1,6 +1,6 @@
 DATASET ?= sample
 
-.PHONY: setup data-monthly data-real features regressions forecasts figures report validate-data pipeline pipeline-real test lint
+.PHONY: setup data-monthly data-real features regressions forecasts figures report validate-data validate-results pipeline pipeline-real test lint
 
 setup:
 	python -m pip install -e .[dev]
@@ -29,10 +29,13 @@ report:
 validate-data:
 	python scripts/validate_data.py --dataset $(DATASET)
 
-pipeline: data-monthly features validate-data regressions forecasts figures report
+validate-results:
+	python scripts/validate_data.py --dataset $(DATASET)
+
+pipeline: data-monthly features validate-data regressions forecasts validate-results figures report
 
 pipeline-real: DATASET=real
-pipeline-real: data-real features validate-data regressions forecasts figures report
+pipeline-real: data-real features validate-data regressions forecasts validate-results figures report
 
 test:
 	pytest

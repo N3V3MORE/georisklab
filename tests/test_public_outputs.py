@@ -36,3 +36,12 @@ def test_root_page_links_to_dashboard():
     assert page.exists()
     html = page.read_text(encoding="utf-8")
     assert "dashboard/index.html" in html
+
+
+def test_methodology_labels_ar1_residual_as_descriptive_full_sample():
+    root = Path(__file__).resolve().parents[1]
+    methodology = (root / "docs" / "METHODOLOGY.md").read_text(encoding="utf-8")
+
+    assert "gpr_ar1_residual_z" in methodology
+    assert "full-sample descriptive residual shock" in methodology
+    assert "not for real-time forecasting" in methodology

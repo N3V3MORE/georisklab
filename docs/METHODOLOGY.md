@@ -97,6 +97,14 @@ stores `Mkt-RF` as `excess_return`, `RF` as `risk_free_rate`, and computes
 
 If risk-free alignment is messy, use raw USD returns in version 0.1 and document the limitation.
 
+### GPR shock measures
+
+The main V0.1 specification uses `gpr_change_z`, a standardized monthly change
+in global GPR. `gpr_level_z` is kept as a high-risk-regime robustness measure.
+`gpr_ar1_residual_z` is a full-sample descriptive residual shock. Use the label
+not for real-time forecasting. A future forecasting-safe version should use an
+expanding AR(1) residual such as `gpr_ar1_residual_expanding_z`.
+
 ### Forward cumulative returns
 
 ```text
