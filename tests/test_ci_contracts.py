@@ -19,6 +19,7 @@ def test_makefile_has_real_pipeline_targets():
 
     assert "data-real:" in makefile
     assert "python scripts/build_real_monthly_data.py --config config/sources.yml" in makefile
+    assert "python scripts/build_report.py --dataset $(DATASET)" in makefile
     assert "pipeline-real:" in makefile
     assert "data-real features validate-data regressions forecasts figures report" in makefile
 

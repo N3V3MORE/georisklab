@@ -24,7 +24,7 @@ TASKS = {
     "regressions": [[sys.executable, "scripts/run_regressions.py"]],
     "forecasts": [[sys.executable, "scripts/run_forecasts.py"]],
     "figures": [[sys.executable, "scripts/make_figures.py"]],
-    "report": [[sys.executable, "scripts/build_report.py"]],
+    "report": [[sys.executable, "scripts/build_report.py", "--dataset", "sample"]],
     "validate-data": [[sys.executable, "scripts/validate_data.py"]],
     "test": [[sys.executable, "-m", "pytest"]],
     "lint": [[sys.executable, "-m", "ruff", "check", "."]],
@@ -47,7 +47,7 @@ PIPELINE_REAL = [
     "regressions-real",
     "forecasts-real",
     "figures-real",
-    "report",
+    "report-real",
 ]
 
 TASKS.update(
@@ -61,6 +61,7 @@ TASKS.update(
         ],
         "forecasts-real": [[sys.executable, "scripts/run_forecasts.py", "--dataset", "real"]],
         "figures-real": [[sys.executable, "scripts/make_figures.py", "--dataset", "real"]],
+        "report-real": [[sys.executable, "scripts/build_report.py", "--dataset", "real"]],
     }
 )
 

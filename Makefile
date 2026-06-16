@@ -24,7 +24,7 @@ figures:
 	python scripts/make_figures.py --dataset $(DATASET)
 
 report:
-	python scripts/build_report.py
+	python scripts/build_report.py --dataset $(DATASET)
 
 validate-data:
 	python scripts/validate_data.py --dataset $(DATASET)

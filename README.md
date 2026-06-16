@@ -83,6 +83,12 @@ The real-data pipeline is separate. Copy `config/sources.sample.yml` to
 `make data-real` or `make pipeline-real`. Raw source files under `data/raw/`
 must stay out of git.
 
+Real-data milestones are staged:
+
+- V0.1a: real GPR plus real developed/emerging Fama-French returns.
+- V0.1b: add a real GDELT event-intensity index.
+- V0.1c: add real macro controls.
+
 Return columns are monthly percentage points, not decimals. For Fama-French
 factor files, `Mkt-RF` becomes `excess_return`, `RF` becomes `risk_free_rate`,
 and `return_usd = excess_return + risk_free_rate`.

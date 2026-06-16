@@ -13,7 +13,10 @@ add_project_root()
 
 from georisklab.ingest.gpr import load_caldara_iacoviello_gpr  # noqa: E402
 from georisklab.ingest.market_returns import load_fama_french_factor_returns  # noqa: E402
-from georisklab.ingest.source_metadata import write_source_manifest  # noqa: E402
+from georisklab.ingest.source_metadata import (  # noqa: E402
+    write_source_collection_manifest,
+    write_source_manifest,
+)
 from georisklab.utils.config import get_project_paths  # noqa: E402
 
 SCRIPT_VERSION = "real-monthly-v1"
@@ -33,23 +36,24 @@ def build_real_monthly_data(config_path: Path, root: Path | None = None) -> None
     gpr = _filter_period(gpr, period)
     gpr["source_download_date"] = pd.Timestamp.today(tz="UTC").date().isoformat()
     gpr.to_csv(paths.data_processed / "gpr_monthly.csv", index=False)
-    write_source_manifest(
+    gpr_manifest = _write_manifest(
         paths.data_metadata / "gpr_manifest.json",
         source_name="Caldara-Iacoviello GPR",
         source_url=str(config["gpr"]["path_or_url"]),
         raw_file_path=str(gpr_source),
         license_or_terms_note="Public benchmark index. Do not redistribute raw source files.",
-        script_version=SCRIPT_VERSION,
     )
 
     ff_config = config["fama_french"]
+    developed_source = _resolve_source(ff_config["developed_zip"], paths.root)
+    emerging_source = _resolve_source(ff_config["emerging_zip"], paths.root)
     developed = load_fama_french_factor_returns(
-        str(_resolve_source(ff_config["developed_zip"], paths.root)),
+        str(developed_source),
         market_id="developed",
         market_class="developed",
     )
     emerging = load_fama_french_factor_returns(
-        str(_resolve_source(ff_config["emerging_zip"], paths.root)),
+        str(emerging_source),
         market_id="emerging",
         market_class="emerging",
     )
@@ -64,6 +68,46 @@ def build_real_monthly_data(config_path: Path, root: Path | None = None) -> None
     )
     spread["spread_em_dev"] = spread["spread_em_dev"].round(10)
     spread.to_csv(paths.data_processed / "market_spread_monthly.csv", index=False)
+
+    developed_manifest = _write_manifest(
+        paths.data_metadata / "fama_french_developed_manifest.json",
+        source_name="Kenneth French Developed Factors",
+        source_url=str(ff_config["developed_zip"]),
+        raw_file_path=str(developed_source),
+        license_or_terms_note=(
+            "Kenneth French data library file. Do not redistribute raw source files."
+        ),
+    )
+    emerging_manifest = _write_manifest(
+        paths.data_metadata / "fama_french_emerging_manifest.json",
+        source_name="Kenneth French Emerging Factors",
+        source_url=str(ff_config["emerging_zip"]),
+        raw_file_path=str(emerging_source),
+        license_or_terms_note=(
+            "Kenneth French data library file. Do not redistribute raw source files."
+        ),
+    )
+    write_source_collection_manifest(
+        paths.data_metadata / "source_manifest_real.json",
+        [gpr_manifest, developed_manifest, emerging_manifest],
+    )
+
+
+def _write_manifest(
+    path: Path,
+    source_name: str,
+    source_url: str,
+    raw_file_path: str,
+    license_or_terms_note: str,
+) -> dict:
+    return write_source_manifest(
+        path,
+        source_name=source_name,
+        source_url=source_url,
+        raw_file_path=raw_file_path,
+        license_or_terms_note=license_or_terms_note,
+        script_version=SCRIPT_VERSION,
+    )
 
 
 def _load_config(config_path: Path) -> dict:

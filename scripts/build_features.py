@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+from pathlib import Path
 
 import pandas as pd
 
@@ -13,8 +14,8 @@ from georisklab.features.panel import build_analysis_panel  # noqa: E402
 from georisklab.utils.config import get_project_paths  # noqa: E402
 
 
-def build_features(dataset: str = "sample") -> None:
-    paths = get_project_paths()
+def build_features(dataset: str = "sample", root: Path | None = None) -> None:
+    paths = get_project_paths(root)
     paths.ensure_output_dirs()
     files = _dataset_files(dataset)
 
@@ -95,8 +96,12 @@ def _read_optional_macro(path, gpr: pd.DataFrame) -> pd.DataFrame:
 def main() -> None:
     parser = argparse.ArgumentParser(description="Build GeoRiskLab features.")
     parser.add_argument("--dataset", choices=["sample", "real"], default="sample")
+    parser.add_argument("--root", default=None)
     args = parser.parse_args()
-    build_features(dataset=args.dataset)
+    build_features(
+        dataset=args.dataset,
+        root=Path(args.root) if args.root else None,
+    )
 
 
 if __name__ == "__main__":

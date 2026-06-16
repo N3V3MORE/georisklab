@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import argparse
+import json
+from pathlib import Path
 
 import pandas as pd
 
@@ -18,17 +20,18 @@ from georisklab.utils.validation import (  # noqa: E402
 )
 
 
-def validate_data(dataset: str = "sample") -> None:
-    paths = get_project_paths()
+def validate_data(dataset: str = "sample", root: Path | None = None) -> None:
+    paths = get_project_paths(root)
     paths.ensure_output_dirs()
     panel_name = "sample_analysis_panel.csv" if dataset == "sample" else "analysis_panel.csv"
     panel_path = paths.data_processed / panel_name
-    metadata_path = paths.data_metadata / "source_manifest.json"
+    metadata_path = _metadata_path(paths.data_metadata, dataset)
 
     if not panel_path.exists():
-        raise FileNotFoundError("sample_analysis_panel.csv is missing; run make features first")
+        raise FileNotFoundError(f"{panel_name} is missing; run make features first")
     if not metadata_path.exists():
-        raise FileNotFoundError("source_manifest.json is missing; run make data-monthly first")
+        raise FileNotFoundError(f"{metadata_path.name} is missing; run the data task first")
+    _validate_metadata(metadata_path, dataset)
 
     panel = pd.read_csv(panel_path, parse_dates=["date_month"])
     ensure_columns(
@@ -53,8 +56,26 @@ def validate_data(dataset: str = "sample") -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(description="Validate GeoRiskLab processed data.")
     parser.add_argument("--dataset", choices=["sample", "real"], default="sample")
+    parser.add_argument("--root", default=None)
     args = parser.parse_args()
-    validate_data(dataset=args.dataset)
+    validate_data(
+        dataset=args.dataset,
+        root=Path(args.root) if args.root else None,
+    )
+
+
+def _metadata_path(metadata_dir: Path, dataset: str) -> Path:
+    if dataset == "sample":
+        return metadata_dir / "source_manifest.json"
+    return metadata_dir / "source_manifest_real.json"
+
+
+def _validate_metadata(metadata_path: Path, dataset: str) -> None:
+    metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+    if dataset == "real":
+        sources = metadata.get("sources", [])
+        if len(sources) < 3:
+            raise ValueError("source_manifest_real.json must list GPR and Fama-French sources")
 
 
 if __name__ == "__main__":

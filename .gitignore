@@ -8,6 +8,9 @@ __pycache__/
 data/raw/
 data/interim/
 data/metadata/gpr_manifest.json
+data/metadata/fama_french_developed_manifest.json
+data/metadata/fama_french_emerging_manifest.json
+data/metadata/source_manifest_real.json
 data/processed/*
 !data/processed/sample_*.csv
 reports/*.pdf

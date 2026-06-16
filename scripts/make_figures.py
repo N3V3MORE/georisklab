@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+from pathlib import Path
 
 import pandas as pd
 
@@ -19,8 +20,8 @@ from georisklab.visualization.plots import (  # noqa: E402
 )
 
 
-def make_figures(dataset: str = "sample") -> None:
-    paths = get_project_paths()
+def make_figures(dataset: str = "sample", root: Path | None = None) -> None:
+    paths = get_project_paths(root)
     paths.ensure_output_dirs()
     panel_name = "sample_analysis_panel.csv" if dataset == "sample" else "analysis_panel.csv"
     panel = pd.read_csv(
@@ -44,8 +45,12 @@ def make_figures(dataset: str = "sample") -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(description="Make GeoRiskLab figures.")
     parser.add_argument("--dataset", choices=["sample", "real"], default="sample")
+    parser.add_argument("--root", default=None)
     args = parser.parse_args()
-    make_figures(dataset=args.dataset)
+    make_figures(
+        dataset=args.dataset,
+        root=Path(args.root) if args.root else None,
+    )
 
 
 if __name__ == "__main__":

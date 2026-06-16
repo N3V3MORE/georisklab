@@ -81,9 +81,16 @@ data/processed/gpr_monthly.csv
 data/processed/market_returns_monthly.csv
 data/processed/market_spread_monthly.csv
 data/metadata/gpr_manifest.json
+data/metadata/fama_french_developed_manifest.json
+data/metadata/fama_french_emerging_manifest.json
+data/metadata/source_manifest_real.json
 ```
 
 Do not commit the raw files or local `config/sources.yml`.
+
+The first real-data milestone is V0.1a: real GPR plus aggregate
+developed/emerging Fama-French returns. Real GDELT event intensity and real
+macro controls are later milestones.
 
 ## Expected outputs
 
