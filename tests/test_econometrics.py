@@ -48,3 +48,48 @@ def test_run_panel_interaction_includes_emerging_interaction():
     )
 
     assert "emerging_x_gpr_global_z" in result.to_frame()["term"].tolist()
+
+
+def test_run_panel_interaction_absorbs_fixed_effects_without_dense_dummies(monkeypatch):
+    dates = pd.date_range("2020-01-01", periods=6, freq="MS")
+    rows = []
+    for date_idx, date in enumerate(dates):
+        for market_idx, (market_id, market_class) in enumerate(
+            [
+                ("developed_a", "developed"),
+                ("developed_b", "developed"),
+                ("emerging_a", "emerging"),
+                ("emerging_b", "emerging"),
+            ]
+        ):
+            shock = float(date_idx + market_idx / 10)
+            emerging = market_class == "emerging"
+            rows.append(
+                {
+                    "date_month": date,
+                    "market_id": market_id,
+                    "market_class": market_class,
+                    "ret_fwd_1m": 1.0 + date_idx + market_idx + shock * (0.3 if emerging else 0.1),
+                    "gpr_global_z": shock,
+                }
+            )
+    panel = pd.DataFrame(rows)
+
+    def fail_get_dummies(*args, **kwargs):
+        raise AssertionError("dense fixed-effect dummies should not be built")
+
+    monkeypatch.setattr(pd, "get_dummies", fail_get_dummies)
+
+    result = run_panel_interaction(
+        panel,
+        horizon=1,
+        config={
+            "shock_col": "gpr_global_z",
+            "market_fixed_effects": True,
+            "time_fixed_effects": True,
+        },
+    )
+
+    table = result.to_frame()
+    assert result.se_type == "clustered"
+    assert "emerging_x_gpr_global_z" in table["term"].tolist()

@@ -1,3 +1,4 @@
+import numpy as np
 import pandas as pd
 import statsmodels.api as sm
 
@@ -44,19 +45,40 @@ def run_panel_interaction(panel: pd.DataFrame, horizon: int, config: dict) -> Re
     interaction_col = f"emerging_x_{shock_col}"
     data[interaction_col] = data["emerging"] * data[shock_col]
 
-    x_parts = [data[[shock_col, interaction_col, *controls]]]
+    x = data[[shock_col, interaction_col, *controls]].astype(float)
+    y = data[target_col].astype(float)
+    fixed_effect_groups = []
     if config.get("market_fixed_effects", False):
-        x_parts.append(pd.get_dummies(data["market_id"], prefix="market", drop_first=True))
+        fixed_effect_groups.append(data["market_id"])
     if config.get("time_fixed_effects", False):
-        x_parts.append(
-            pd.get_dummies(data["date_month"].astype(str), prefix="month", drop_first=True)
-        )
+        fixed_effect_groups.append(data["date_month"])
 
-    x = sm.add_constant(pd.concat(x_parts, axis=1).astype(float), has_constant="add")
-    y = data[target_col]
+    if fixed_effect_groups:
+        x = _absorb_fixed_effects(x, fixed_effect_groups)
+        y = _absorb_fixed_effects(y.to_frame(target_col), fixed_effect_groups)[target_col]
+    else:
+        x = sm.add_constant(x, has_constant="add")
+
     fitted = sm.OLS(y, x).fit(cov_type="cluster", cov_kwds={"groups": data["market_id"]})
 
     return _to_result(fitted, {"horizon": horizon, "model": "panel_interaction"}, "clustered")
+
+
+def _absorb_fixed_effects(
+    values: pd.DataFrame,
+    groups: list[pd.Series],
+    max_iter: int = 100,
+    tolerance: float = 1e-10,
+) -> pd.DataFrame:
+    residual = values.copy()
+    for _ in range(max_iter):
+        previous = residual.to_numpy(copy=True)
+        for group in groups:
+            residual = residual - residual.groupby(group, sort=False).transform("mean")
+        change = np.max(np.abs(residual.to_numpy() - previous))
+        if change < tolerance:
+            break
+    return residual
 
 
 def _to_result(fitted, metadata: dict, se_type: str) -> RegressionResult:
