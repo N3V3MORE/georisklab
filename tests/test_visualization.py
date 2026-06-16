@@ -17,4 +17,4 @@ def test_plot_gpr_timeseries_uses_main_shock_by_default():
     y_values = figure.axes[0].lines[0].get_ydata()
 
     np.testing.assert_allclose(y_values, df["gpr_change_z"])
-    assert figure.axes[0].get_title() == "Global geopolitical risk shock"
+    assert figure.axes[0].get_title() == "Global geopolitical risk change shock"
