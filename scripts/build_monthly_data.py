@@ -1,7 +1,9 @@
 # ruff: noqa: E402, I001
 from __future__ import annotations
 
+import argparse
 import json
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -16,8 +18,8 @@ SAMPLE_SOURCE_DATE = "2026-06-15"
 SAMPLE_TIMESTAMP_UTC = "2026-06-15T00:00:00+00:00"
 
 
-def build_sample_monthly_data() -> None:
-    paths = get_project_paths()
+def build_sample_monthly_data(root: Path | None = None) -> None:
+    paths = get_project_paths(root)
     paths.ensure_output_dirs()
 
     dates = pd.date_range("2000-01-01", "2024-12-01", freq="MS")
@@ -117,7 +119,10 @@ def build_sample_monthly_data() -> None:
 
 
 def main() -> None:
-    build_sample_monthly_data()
+    parser = argparse.ArgumentParser(description="Build sample monthly GeoRiskLab data.")
+    parser.add_argument("--root", default=None)
+    args = parser.parse_args()
+    build_sample_monthly_data(root=Path(args.root) if args.root else None)
 
 
 if __name__ == "__main__":

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+from pathlib import Path
 import subprocess
 import sys
 
@@ -77,8 +78,19 @@ TASKS.update(
     }
 )
 
+ROOT_AWARE_SCRIPTS = {
+    "scripts/build_monthly_data.py",
+    "scripts/build_real_monthly_data.py",
+    "scripts/build_features.py",
+    "scripts/run_regressions.py",
+    "scripts/run_forecasts.py",
+    "scripts/make_figures.py",
+    "scripts/build_report.py",
+    "scripts/validate_data.py",
+}
 
-def run_task(name: str) -> int:
+
+def run_task(name: str, root: Path | None = None) -> int:
     if name == "pipeline":
         task_names = PIPELINE
     elif name == "pipeline-real":
@@ -90,17 +102,27 @@ def run_task(name: str) -> int:
             valid = ", ".join([*TASKS, "pipeline", "pipeline-real"])
             raise ValueError(f"unknown task '{task_name}'. Valid tasks: {valid}")
         for command in TASKS[task_name]:
-            result = subprocess.run(command, check=False)
+            result = subprocess.run(_command_with_root(command, root), check=False)
             if result.returncode != 0:
                 return result.returncode
     return 0
 
 
+def _command_with_root(command: list[str], root: Path | None) -> list[str]:
+    if root is None or len(command) < 2:
+        return command
+    script = command[1].replace("\\", "/")
+    if script not in ROOT_AWARE_SCRIPTS:
+        return command
+    return [*command, "--root", str(root)]
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Run GeoRiskLab project tasks.")
     parser.add_argument("task", choices=[*TASKS, "pipeline", "pipeline-real"])
+    parser.add_argument("--root", default=None)
     args = parser.parse_args()
-    raise SystemExit(run_task(args.task))
+    raise SystemExit(run_task(args.task, root=Path(args.root) if args.root else None))
 
 
 if __name__ == "__main__":
