@@ -1,4 +1,0 @@
-model,rmse,mae,oos_r2,n_forecasts,first_forecast_date,last_forecast_date,forecast_window_aligned,benchmark_model
-historical_mean,2.939273,2.342179,0.0,170,2012-02-01,2026-03-01,True,historical_mean
-gpr_only,2.99179,2.402845,-0.036054,170,2012-02-01,2026-03-01,True,historical_mean
-regularized_gpr_only,2.989756,2.400752,-0.034645,170,2012-02-01,2026-03-01,True,historical_mean
