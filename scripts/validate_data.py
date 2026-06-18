@@ -13,6 +13,7 @@ from _bootstrap import add_project_root
 add_project_root()
 
 from georisklab.utils.config import get_project_paths  # noqa: E402
+from georisklab.utils.datasets import dataset_files  # noqa: E402
 from georisklab.utils.outputs import table_path  # noqa: E402
 from georisklab.utils.validation import (  # noqa: E402
     assert_dates_are_month_start,
@@ -37,13 +38,13 @@ def validate_data(
 ) -> None:
     paths = get_project_paths(root)
     paths.ensure_output_dirs()
-    panel_name = "sample_analysis_panel.csv" if dataset == "sample" else "analysis_panel.csv"
-    panel_path = paths.data_processed / panel_name
-    metadata_path = _metadata_path(paths.data_metadata, dataset)
-    analysis_manifest_path = paths.data_metadata / _analysis_panel_manifest_name(dataset)
+    files = dataset_files(dataset)
+    panel_path = paths.data_processed / files.analysis_panel
+    metadata_path = paths.data_metadata / files.source_manifest
+    analysis_manifest_path = paths.data_metadata / files.analysis_manifest
 
     if not panel_path.exists():
-        raise FileNotFoundError(f"{panel_name} is missing; run make features first")
+        raise FileNotFoundError(f"{files.analysis_panel} is missing; run make features first")
     if not metadata_path.exists():
         raise FileNotFoundError(f"{metadata_path.name} is missing; run the data task first")
     if not analysis_manifest_path.exists():
@@ -72,9 +73,10 @@ def validate_data(
     _validate_forward_return_missingness(panel, [1, 3, 6])
 
     if dataset == "real":
-        gpr = pd.read_csv(paths.data_processed / "gpr_monthly.csv", parse_dates=["date_month"])
+        # Real-data checks are stricter because these outputs can be mistaken for findings.
+        gpr = pd.read_csv(paths.data_processed / files.gpr, parse_dates=["date_month"])
         returns = pd.read_csv(
-            paths.data_processed / "market_returns_monthly.csv",
+            paths.data_processed / files.market_returns,
             parse_dates=["date_month"],
         )
         _validate_real_source_frames(gpr, returns, min_overlap_months=min_overlap_months)
@@ -108,18 +110,6 @@ def main() -> None:
         min_forecast_train_months=args.min_forecast_train_months,
         check_results=args.check_results,
     )
-
-
-def _metadata_path(metadata_dir: Path, dataset: str) -> Path:
-    if dataset == "sample":
-        return metadata_dir / "source_manifest.json"
-    return metadata_dir / "source_manifest_real.json"
-
-
-def _analysis_panel_manifest_name(dataset: str) -> str:
-    if dataset == "sample":
-        return "analysis_panel_manifest.json"
-    return "analysis_panel_manifest_real.json"
 
 
 def _validate_metadata(metadata_path: Path, dataset: str) -> None:

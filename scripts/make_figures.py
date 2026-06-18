@@ -11,6 +11,7 @@ from _bootstrap import add_project_root
 add_project_root()
 
 from georisklab.utils.config import get_project_paths  # noqa: E402
+from georisklab.utils.datasets import dataset_files  # noqa: E402
 from georisklab.utils.outputs import figure_path, table_path  # noqa: E402
 from georisklab.visualization.plots import (  # noqa: E402
     plot_forecast_comparison,
@@ -24,9 +25,9 @@ from georisklab.visualization.plots import (  # noqa: E402
 def make_figures(dataset: str = "sample", root: Path | None = None) -> None:
     paths = get_project_paths(root)
     paths.ensure_output_dirs()
-    panel_name = "sample_analysis_panel.csv" if dataset == "sample" else "analysis_panel.csv"
+    files = dataset_files(dataset)
     panel = pd.read_csv(
-        paths.data_processed / panel_name,
+        paths.data_processed / files.analysis_panel,
         parse_dates=["date_month"],
     )
     regressions = pd.read_csv(table_path(paths, "table_02_baseline_regressions.csv", dataset))

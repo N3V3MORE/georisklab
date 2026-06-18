@@ -12,6 +12,7 @@ add_project_root()
 
 from georisklab.econometrics.local_projection import run_local_projections  # noqa: E402
 from georisklab.utils.config import get_project_paths  # noqa: E402
+from georisklab.utils.datasets import dataset_files  # noqa: E402
 from georisklab.utils.outputs import table_path  # noqa: E402
 
 
@@ -22,8 +23,8 @@ def run_regressions(
 ) -> None:
     paths = get_project_paths(root)
     paths.ensure_output_dirs()
-    panel_name = "sample_analysis_panel.csv" if dataset == "sample" else "analysis_panel.csv"
-    panel = pd.read_csv(paths.data_processed / panel_name, parse_dates=["date_month"])
+    files = dataset_files(dataset)
+    panel = pd.read_csv(paths.data_processed / files.analysis_panel, parse_dates=["date_month"])
     controls = ["sample_global_cycle"] if dataset == "sample" else []
     shock_col = "gpr_change_z"
 

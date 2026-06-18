@@ -15,16 +15,19 @@ add_project_root()
 
 from georisklab.features.panel import build_analysis_panel  # noqa: E402
 from georisklab.utils.config import get_project_paths  # noqa: E402
+from georisklab.utils.datasets import dataset_files  # noqa: E402
 from georisklab.utils.outputs import table_path  # noqa: E402
 
 
 def build_features(dataset: str = "sample", root: Path | None = None) -> None:
     paths = get_project_paths(root)
     paths.ensure_output_dirs()
-    files = _dataset_files(dataset)
+    files = dataset_files(dataset)
     input_paths = {
-        key: paths.data_processed / files[key]
-        for key in ["market_returns", "gpr", "gdelt", "macro"]
+        "market_returns": paths.data_processed / files.market_returns,
+        "gpr": paths.data_processed / files.gpr,
+        "gdelt": paths.data_processed / files.gdelt,
+        "macro": paths.data_processed / files.macro,
     }
 
     market_returns = pd.read_csv(
@@ -34,6 +37,7 @@ def build_features(dataset: str = "sample", root: Path | None = None) -> None:
     gpr = pd.read_csv(input_paths["gpr"], parse_dates=["date_month"])
     common_sample = None
     if dataset == "real":
+        # Real outputs must use dates where both GPR and returns are present.
         market_returns, gpr, common_sample = _align_real_common_sample(market_returns, gpr)
     gdelt, used_placeholder_gdelt = _read_optional_gdelt(input_paths["gdelt"], gpr)
     macro, used_placeholder_macro = _read_optional_macro(input_paths["macro"], gpr)
@@ -44,10 +48,10 @@ def build_features(dataset: str = "sample", root: Path | None = None) -> None:
     )
 
     panel = build_analysis_panel(market_returns, gpr, gdelt, macro)
-    output_path = paths.data_processed / files["analysis_panel"]
+    output_path = paths.data_processed / files.analysis_panel
     panel.to_csv(output_path, index=False)
     _write_analysis_panel_manifest(
-        paths.data_metadata / _analysis_panel_manifest_name(dataset),
+        paths.data_metadata / files.analysis_manifest,
         dataset=dataset,
         panel=panel,
         input_paths=input_paths,
@@ -70,29 +74,10 @@ def build_features(dataset: str = "sample", root: Path | None = None) -> None:
     summary.to_csv(table_path(paths, "table_01_summary_stats.csv", dataset), index=False)
 
 
-def _dataset_files(dataset: str) -> dict[str, str]:
-    if dataset == "sample":
-        return {
-            "gpr": "sample_gpr_monthly.csv",
-            "market_returns": "sample_market_returns_monthly.csv",
-            "gdelt": "sample_gdelt_country_monthly.csv",
-            "macro": "sample_macro_controls_monthly.csv",
-            "analysis_panel": "sample_analysis_panel.csv",
-        }
-    if dataset == "real":
-        return {
-            "gpr": "gpr_monthly.csv",
-            "market_returns": "market_returns_monthly.csv",
-            "gdelt": "gdelt_country_monthly.csv",
-            "macro": "macro_controls_monthly.csv",
-            "analysis_panel": "analysis_panel.csv",
-        }
-    raise ValueError("dataset must be 'sample' or 'real'")
-
-
 def _read_optional_gdelt(path, gpr: pd.DataFrame) -> tuple[pd.DataFrame, bool]:
     if path.exists():
         return pd.read_csv(path, parse_dates=["date_month"]), False
+    # This keeps the pipeline runnable while making staged inputs explicit.
     return (
         pd.DataFrame(
             {
@@ -109,6 +94,7 @@ def _read_optional_gdelt(path, gpr: pd.DataFrame) -> tuple[pd.DataFrame, bool]:
 def _read_optional_macro(path, gpr: pd.DataFrame) -> tuple[pd.DataFrame, bool]:
     if path.exists():
         return pd.read_csv(path, parse_dates=["date_month"]), False
+    # Use a clearly named placeholder so real panels cannot hide sample controls.
     return (
         pd.DataFrame(
             {
@@ -167,12 +153,6 @@ def _align_real_common_sample(
         gpr[gpr["date_month"].isin(common_dates)].reset_index(drop=True),
         common_dates,
     )
-
-
-def _analysis_panel_manifest_name(dataset: str) -> str:
-    if dataset == "sample":
-        return "analysis_panel_manifest.json"
-    return "analysis_panel_manifest_real.json"
 
 
 def _write_analysis_panel_manifest(

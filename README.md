@@ -1,154 +1,101 @@
 # GeoRiskLab
 
-Open-source empirical finance toolkit for measuring geopolitical risk and estimating asymmetric equity-market responses across emerging and developed markets.
+GeoRiskLab is a reproducible research project for studying how geopolitical risk
+relates to developed and emerging equity-market returns.
 
-## Purpose
+The project has two modes:
 
-GeoRiskLab turns a research question into a reproducible data product:
+- **Sample mode:** uses deterministic toy data so anyone can test the code.
+- **Real mode:** uses user-supplied GPR and Fama-French files, with provenance
+  checks before results are treated as real-data outputs.
 
-> Do geopolitical risk shocks affect emerging and developed equity markets differently, and can public event or news data improve forecasts of returns, volatility, and downside risk?
+If you are new to the repo, start here:
 
-The first real-data milestone, V0.1a, focuses on monthly developed versus emerging equity returns and the Caldara-Iacoviello GPR index. GDELT event intensity and macro-financial controls are staged extensions.
+- [Start Here](START_HERE.md)
+- [Methodology](docs/METHODOLOGY.md)
+- [Reproducibility guide](docs/REPRODUCIBILITY.md)
+- [Data sources](docs/DATA_SOURCES.md)
 
-## Minimum viable research product
+## What It Builds
 
-The project is successful when a reviewer can clone the repo, run a documented pipeline, and reproduce:
+The default pipeline rebuilds:
 
-1. A clean monthly panel from 1990 or 2000 onward.
-2. A GPR shock series, plus a staged GDELT event-intensity series that is synthetic in the sample pipeline and real starting in V0.1b.
-3. Baseline developed versus emerging market return results.
-4. At least one panel regression table once country-level data are added.
-5. At least one local-projection or event-study figure.
-6. One forecasting comparison showing whether geopolitical features add out-of-sample value.
-7. A short limitations section that explains what the project does not prove.
+- a monthly analysis panel,
+- missingness and summary-statistics tables,
+- baseline regression and forecast-comparison tables,
+- figures for GPR, return spreads, local projections, GDELT comparison, and forecasts,
+- a static dashboard at `dashboard/index.html`,
+- a local PDF report.
 
-## Repo map
+The default outputs use sample data. They prove the workflow runs, but they do
+not claim empirical findings.
 
-```text
-georisklab/
-  georisklab/
-    ingest/              # download and parse public data
-    features/            # risk index, controls, target construction
-    econometrics/        # regressions, local projections, event studies
-    models/              # forecasting baselines and ML models
-    visualization/       # reusable plot functions
-    utils/               # config, logging, validation helpers
-  scripts/               # command-line entry points
-  notebooks/             # exploration only, not final results
-  data/
-    raw/                 # gitignored
-    interim/             # gitignored
-    processed/           # gitignored except tiny sample files
-  reports/
-    figures/
-    tables/
-  dashboard/
-  docs/
-  tests/
-  .github/
-```
+## Quick Run
 
-## Core commands
-
-```bash
-make setup
-make data-monthly
-make features
-make regressions
-make forecasts
-make figures
-make report
-make pipeline
-make data-real
-make pipeline-real
-make test
-```
-
-If `make` is not installed, use the cross-platform runner:
+Install the project:
 
 ```bash
 python scripts/run_task.py setup
+```
+
+Run the sample pipeline:
+
+```bash
 python scripts/run_task.py pipeline
-python scripts/run_task.py pipeline-real
+```
+
+Run checks:
+
+```bash
 python scripts/run_task.py test
 python scripts/run_task.py lint
 ```
 
-The default pipeline uses deterministic sample data. It proves that the code,
-tables, figures, and report can be rebuilt without private data or API keys. It
-does not claim empirical findings until real source data are supplied.
+If you have `make`, the matching command is:
 
-The real-data pipeline is separate. Copy `config/sources.sample.yml` to
-`config/sources.yml`, point it at local raw GPR and Fama-French files, then run
-`make data-real` or `make pipeline-real`. Raw source files under `data/raw/`
-must stay out of git. HTTPS Fama-French zip URLs are supported only when the
-source config also provides the expected SHA-256 hash, so the downloaded file can
-be verified and cached locally before parsing.
+```bash
+make pipeline
+```
 
-Real-data milestones are staged:
+## Real Data
 
-- V0.1a: real GPR plus real developed/emerging Fama-French returns.
-- V0.1b: add a real GDELT event-intensity index.
-- V0.1c: add real macro controls.
+Real-data runs are separate from sample runs.
 
-If `gdelt_country_monthly.csv` or `macro_controls_monthly.csv` is missing during a
-real feature build, the pipeline inserts explicit placeholders and prints a warning.
-Those placeholders are for pipeline completeness only and are excluded from real
-empirical claims. Placeholder usage is also recorded in
-`data/metadata/analysis_panel_manifest_real.json`; placeholder macro columns are
-named `placeholder_*` and validation rejects sample-named controls in real panels.
+1. Copy `config/sources.sample.yml` to `config/sources.yml`.
+2. Point it at local raw source files under `data/raw/`.
+3. Run:
 
-For the real aggregate panel, feature construction is trimmed to the common GPR
-and developed/emerging return sample before merges and report generation.
+```bash
+python scripts/run_task.py pipeline-real
+```
 
-Return columns are monthly percentage points, not decimals. For Fama-French
-factor files, `Mkt-RF` becomes `excess_return`, `RF` becomes `risk_free_rate`,
-and `return_usd = excess_return + risk_free_rate`.
+Raw files, local source config, real-data figures, real-data tables, and real-data
+PDF reports are local artifacts by default. They should not be committed unless
+the project intentionally publishes a release artifact.
 
-Important limitation: the two-market aggregate sample cannot support credible clustered panel inference. Country-clustered panel inference requires a country-level panel with enough independent country clusters.
+## Important Limits
 
-Current real-data forecast comparison is intentionally narrow: historical mean,
-GPR-only linear, and ridge-regularized GPR-only models. AR, elastic net, and
-tree-based models remain future extensions until they are actually implemented.
+The two-market aggregate sample cannot support credible clustered panel inference.
+Country-clustered panel inference requires a country-level panel with enough
+independent country clusters.
 
-Generated public outputs:
+Current real-data forecasts are intentionally narrow: historical mean, GPR-only
+linear, and ridge-regularized GPR-only models. AR, elastic net, and tree-based
+models remain future extensions until they are actually implemented.
 
-- `reports/tables/table_00_missingness.csv`
-- `reports/tables/table_01_summary_stats.csv`
-- `reports/tables/table_02_baseline_regressions.csv`
-- `reports/tables/table_03_forecast_comparison.csv`
-- `reports/figures/fig_01_gpr_timeseries.png`
-- `reports/figures/fig_02_em_dev_spread.png`
-- `reports/figures/fig_03_local_projection.png`
-- `reports/figures/fig_04_gdelt_vs_gpr.png`
-- `reports/figures/fig_05_forecast_comparison.png`
-- `dashboard/index.html`
+## Repo Map
 
-For real runs, equivalent `*_real` tables and figures are local artifacts. The
-real GDELT comparison figure is generated only after real GDELT inputs are
-supplied; placeholder GDELT inputs are deliberately not plotted.
+```text
+georisklab/      reusable Python package
+scripts/         commands that build data, tables, figures, and reports
+data/            ignored raw/interim files plus small reproducible samples
+reports/         generated tables, figures, and local reports
+dashboard/       static HTML dashboard
+docs/            method, data, reproducibility, and project notes
+tests/           checks that protect the workflow
+```
 
-The PDF report is generated by `make report` as a local build artifact and is not
-committed by default.
+## Data Policy
 
-## Main documentation
-
-- [Project specification](docs/PROJECT_SPEC.md)
-- [Data sources and licensing notes](docs/DATA_SOURCES.md)
-- [Methodology](docs/METHODOLOGY.md)
-- [Reproducibility guide](docs/REPRODUCIBILITY.md)
-- [Roadmap](docs/ROADMAP.md)
-- [Grill questions](docs/GRILL_QUESTIONS.md)
-- [Acceptance criteria](docs/ACCEPTANCE_CRITERIA.md)
-
-## Scope discipline
-
-Do not start with firm-level stock prediction, intraday trading, or deep learning. The first version should be econometrics-first, with a small forecasting module added only after the baseline data and inference pipeline are stable.
-
-## Data policy
-
-Do not commit raw third-party market data. Commit only scripts, metadata, small toy samples, and derived results that comply with the relevant source terms.
-
-## Suggested citation
-
-Use `CITATION.cff` for repository citation metadata. Archive a tagged release through Zenodo only if you need a DOI.
+Do not commit raw third-party market data. Commit only scripts, metadata, small
+toy samples, and derived results that comply with the relevant source terms.
