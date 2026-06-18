@@ -12,6 +12,7 @@ The project has two modes:
 If you are new to the repo, start here:
 
 - [Start Here](START_HERE.md)
+- [Project status and roadmap](docs/ROADMAP.md)
 - [Methodology](docs/METHODOLOGY.md)
 - [Reproducibility guide](docs/REPRODUCIBILITY.md)
 - [Data sources](docs/DATA_SOURCES.md)

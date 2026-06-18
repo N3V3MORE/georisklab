@@ -1,26 +1,111 @@
 # Data Sources and Licensing Notes
 
-This project should be built from public or openly accessible data sources. Public access does not automatically mean public domain. The repo should store download scripts, metadata, checksums, and small samples, not raw third-party market data unless the source terms allow redistribution.
+GeoRiskLab uses public or openly accessible data sources. Public access does not
+automatically mean public domain. The repo stores download scripts, metadata,
+checksums, and small samples, not raw third-party market data unless the source
+terms allow redistribution.
 
-## Core data sources
+## Current data contracts
 
-### GDELT
+Current V0.1a real-data inputs:
 
-Use case:
+```text
+gpr_monthly.csv
+  date_month
+  gpr_global
+  gprt_global
+  gpra_global
+  source_download_date
 
-- Country-month geopolitical event intensity.
-- Event category counts.
-- Severity weighting using event category, Goldstein score, and tone where available.
+market_returns_monthly.csv
+  date_month
+  market_id              developed or emerging
+  market_class           developed or emerging
+  return_usd
+  risk_free_rate
+  excess_return
+  source
+  source_download_date
+```
 
-Relevant pages:
+Staged extension contracts:
 
-- https://www.gdeltproject.org/
-- https://www.gdeltproject.org/data.html
-- https://data.gdeltproject.org/documentation/
+```text
+gdelt_country_monthly.csv
+  date_month
+  country_iso3
+  event_count
+  conflict_count
+  protest_count
+  sanction_count
+  diplomatic_conflict_count
+  avg_goldstein
+  avg_tone
+  risk_index_raw
+  risk_index_zscore
+  source_download_date
+  filter_version
 
-Design note:
+macro_controls_monthly.csv
+  date_month
+  country_iso3
+  indicator_code
+  value
+  frequency_original
+  frequency_converted
+  source
+  source_download_date
+```
 
-GDELT is a media/event-coding dataset, not a clean ground-truth conflict dataset. Treat it as a noisy proxy. Document every filter used.
+Current analysis panel:
+
+```text
+date_month
+market_id
+market_class
+return_usd
+risk_free_rate
+excess_return
+source
+source_download_date
+ret_fwd_1m
+ret_fwd_3m
+ret_fwd_6m
+gpr_global
+gprt_global
+gpra_global
+gpr_level_z
+gpr_global_z
+gpr_change
+gpr_change_z
+gpr_log_change
+gpr_log_change_z
+gprt_global_z
+gpra_global_z
+gpr_ar1_residual
+gpr_ar1_residual_z
+gdelt_risk_raw
+gdelt_risk_z
+sample_global_cycle            sample mode only
+placeholder_macro_zero         real mode only when macro placeholder is used
+spread_em_dev
+neg_ret_1m
+left_tail_1m
+```
+
+Rules:
+
+- Dates must be month starts.
+- Returns are monthly percentage points, not decimals.
+- Developed and emerging market identifiers are standardized as `developed` and
+  `emerging`.
+- Fama-French missing-value sentinels such as `-99.99` must fail validation.
+- Real GPR and return data are trimmed to their common monthly sample before
+  feature construction.
+- Placeholder GDELT and macro inputs must be explicit in metadata and excluded
+  from real empirical claims.
+
+## Current V0.1a sources
 
 ### Caldara-Iacoviello GPR index
 
@@ -52,17 +137,6 @@ GPRA  -> gpra_global
 ```
 
 Raw downloaded files should stay out of git. Commit tiny fixtures and metadata only.
-
-### Economic Policy Uncertainty
-
-Use case:
-
-- Control for broader policy uncertainty.
-- Distinguish geopolitical risk from domestic policy uncertainty.
-
-Relevant page:
-
-- https://www.policyuncertainty.com/
 
 ### Kenneth French Data Library
 
@@ -97,6 +171,41 @@ zip files so CI does not depend on live downloads.
 When using HTTPS zip URLs instead of local files, record the expected SHA-256 in
 `config/sources.yml`; the loader caches and verifies the downloaded file before
 processing.
+
+## Planned extension sources
+
+These sources are part of the roadmap. They should not be described as current
+real empirical inputs until ingestion and validation are implemented.
+
+### GDELT
+
+Use case:
+
+- Country-month geopolitical event intensity.
+- Event category counts.
+- Severity weighting using event category, Goldstein score, and tone where available.
+
+Relevant pages:
+
+- https://www.gdeltproject.org/
+- https://www.gdeltproject.org/data.html
+- https://data.gdeltproject.org/documentation/
+
+Design note:
+
+GDELT is a media/event-coding dataset, not a clean ground-truth conflict
+dataset. Treat it as a noisy proxy. Document every filter used.
+
+### Economic Policy Uncertainty
+
+Use case:
+
+- Control for broader policy uncertainty.
+- Distinguish geopolitical risk from domestic policy uncertainty.
+
+Relevant page:
+
+- https://www.policyuncertainty.com/
 
 ### FRED
 
@@ -147,7 +256,10 @@ IMF APIs use SDMX. This is more annoying than CSV but worth learning for an econ
 
 ## Optional market data
 
-Daily prices are useful for event studies but create licensing and survivorship issues. If using a public website for daily prices, do not redistribute raw data. If you buy a clean academic or vendor dataset, document the terms and keep it out of the public repo.
+Daily prices are useful for event studies but create licensing and survivorship
+issues. If using a public website for daily prices, do not redistribute raw data.
+If you buy a clean academic or vendor dataset, document the terms and keep it
+out of the public repo.
 
 ## Source metadata standard
 

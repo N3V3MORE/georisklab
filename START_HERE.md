@@ -42,6 +42,14 @@ python scripts/run_task.py setup
 
 ## Which Files Matter Most
 
+For understanding the project:
+
+- `README.md` - short public overview.
+- `docs/ROADMAP.md` - what is done, what is next, and what not to claim.
+- `docs/METHODOLOGY.md` - research design and interpretation rules.
+- `docs/DATA_SOURCES.md` - source notes, schemas, and data policy.
+- `docs/REPRODUCIBILITY.md` - how to rebuild and check outputs.
+
 For normal project use:
 
 - `scripts/run_task.py` - the simple command runner.

@@ -1,125 +1,97 @@
 # Methodology
 
-## Current implementation note
+## Current Implementation
 
-The runnable default pipeline uses deterministic sample data. This validates the
+The runnable default pipeline uses deterministic sample data. It validates the
 software workflow, output schemas, regressions, forecasts, figures, and report
 generation. It is not evidence for the research hypotheses until real public
 source data are supplied through the documented ingestion contracts.
+
+The V0.1a real-data path uses real Caldara-Iacoviello GPR data and real Kenneth
+French developed/emerging aggregate returns. GDELT event intensity and macro
+controls remain staged extensions.
 
 The two-market aggregate sample cannot support credible clustered panel inference.
 Country-clustered panel inference requires a country-level panel with enough
 independent country clusters. Do not interpret the current aggregate sample as a
 credible panel-regression design.
 
-## Identification logic
+## Identification Logic
 
-The project should not claim clean causal identification from a simple return regression. The honest claim is narrower:
+The project should not claim clean causal identification from a simple return
+regression. The honest claim is narrower:
 
-> The project estimates conditional associations and dynamic market responses around geopolitical risk shocks, then tests whether those responses differ between emerging and developed markets.
+> The project estimates conditional associations and dynamic market responses
+> around geopolitical risk shocks, then tests whether those responses differ
+> between emerging and developed markets.
 
-Any causal language must be limited unless the design includes stronger identification, such as plausibly exogenous event timing, narrow event windows, or external instruments.
+Causal language requires a stronger design, such as plausibly exogenous event
+timing, narrow event windows, or external instruments.
 
-## Shock construction
+## Shock Measures
 
-### Option A: Standardised GPR innovation
-
-1. Take log GPR if the distribution is highly skewed.
-2. Remove predictable components using an AR model or lagged controls.
-3. Standardise residuals.
-
-```text
-gpr_shock_t = residual from log_gpr_t ~ log_gpr_t-1 + controls_t-1
-```
-
-### Option B: High-risk event month
+Current main measure:
 
 ```text
-high_gpr_t = 1 if gpr_t is above its rolling 90th percentile
+gpr_change_z
 ```
 
-This is easier to explain but loses information.
+This is a standardized monthly change in global GPR.
 
-### Option C: Threats versus acts
-
-Estimate separate responses to:
+Other implemented measures:
 
 ```text
-gprt_shock_t     geopolitical threats
-gpra_shock_t     realised geopolitical acts
+gpr_level_z               high-risk-regime robustness measure
+gpr_log_change_z          log-change version of the GPR shock
+gpr_ar1_residual_z        full-sample descriptive residual shock
 ```
 
-## GDELT index construction
+`gpr_ar1_residual_z` is a full-sample descriptive residual shock, not for real-time forecasting.
+A future forecasting-safe version should use only information available before
+the forecast origin.
 
-### Basic version
+The deterministic sample pipeline injects its synthetic return response using
+the lagged `gpr_change_z` shock, so the sample regression estimates the same
+signal that the sample data-generating process uses.
 
-For country i and month t:
-
-```text
-gdelt_risk_i,t = log(1 + conflict_count_i,t + protest_count_i,t + sanction_count_i,t + diplomatic_conflict_count_i,t)
-```
-
-### Weighted version
-
-```text
-gdelt_risk_i,t = log(1 + sum_events weight_event)
-```
-
-Candidate weights:
-
-```text
-abs(min(goldstein_score, 0))
-negative_tone_intensity
-category_severity_weight
-```
-
-Keep the weighting transparent. Do not use an opaque score unless you can explain it in one paragraph.
-
-## Return construction
-
-### Monthly returns
-
-```text
-ret_t = 100 * log(price_t / price_t-1)
-```
+## Return Construction
 
 Returns in project outputs are monthly percentage points, not decimals.
 
-### Excess returns
+For Fama-French factor files:
 
 ```text
-excess_ret_t = ret_t - risk_free_t
+excess_return = Mkt-RF
+risk_free_rate = RF
+return_usd = excess_return + risk_free_rate
 ```
 
-For Fama-French factor files, `Mkt-RF` is already an excess return. The loader
-stores `Mkt-RF` as `excess_return`, `RF` as `risk_free_rate`, and computes
-`return_usd = excess_return + risk_free_rate`.
-
-If risk-free alignment is messy, use raw USD returns in version 0.1 and document the limitation.
-
-### GPR shock measures
-
-The main V0.1 specification uses `gpr_change_z`, a standardized monthly change
-in global GPR. `gpr_level_z` is kept as a high-risk-regime robustness measure.
-`gpr_ar1_residual_z` is a full-sample descriptive residual shock. Use the label
-not for real-time forecasting. A future forecasting-safe version should use an
-expanding AR(1) residual such as `gpr_ar1_residual_expanding_z`.
-
-The deterministic sample pipeline injects its synthetic return response using
-the lagged `gpr_change_z` shock, so the forward-return regression estimates the
-same signal that the sample data-generating process uses.
-
-### Forward cumulative returns
+Forward cumulative returns are measured after the predictor month:
 
 ```text
 ret_fwd_3m_t = ret_t+1 + ret_t+2 + ret_t+3
 ```
 
-Be explicit that predictors are measured at t and outcomes are future returns.
+Predictors are measured at month `t`; outcomes are future returns.
 
-## Baseline regressions
+## GDELT Index Plan
 
-### Aggregate spread model
+GDELT is a noisy media/event-coding proxy, not ground-truth geopolitical risk.
+It should extend the benchmark GPR analysis, not replace it.
+
+Planned simple index:
+
+```text
+gdelt_risk_i,t = log(1 + conflict_count_i,t + protest_count_i,t
+                       + sanction_count_i,t + diplomatic_conflict_count_i,t)
+```
+
+Any weighted version must document the event categories and weights clearly.
+Do not use an opaque score unless it can be explained in one paragraph.
+
+## Regressions
+
+Aggregate spread model:
 
 ```text
 spread_em_dev_t+h = alpha_h + beta_h * gpr_shock_t + gamma_h' controls_t + error_t+h
@@ -127,19 +99,20 @@ spread_em_dev_t+h = alpha_h + beta_h * gpr_shock_t + gamma_h' controls_t + error
 
 Purpose:
 
-- Simple first test.
+- Simple first benchmark.
 - Easy to plot.
-- Good for README and dashboard.
+- Useful for the dashboard and README.
 
 Weakness:
 
-- Low sample size.
-- Hard to separate global shocks.
+- Small aggregate sample.
+- Hard to separate GPR from broad global risk-off shocks.
 
-### Panel interaction model
+Panel interaction model:
 
 ```text
-r_i,t+h = alpha_i + lambda_t + beta_h * gpr_i,t + theta_h * emerging_i * gpr_i,t + gamma_h' X_i,t + error_i,t+h
+r_i,t+h = alpha_i + lambda_t + beta_h * gpr_i,t
+          + theta_h * emerging_i * gpr_i,t + gamma_h' X_i,t + error_i,t+h
 ```
 
 Key coefficient:
@@ -148,73 +121,57 @@ Key coefficient:
 theta_h
 ```
 
-Interpretation:
-
-- Difference in response between emerging and developed markets, conditional on controls and fixed effects.
+Interpretation: difference in response between emerging and developed markets,
+conditional on controls and fixed effects.
 
 ## Inference
 
-Minimum:
+Minimum standard:
 
 - HAC standard errors for time-series regressions.
-- Country-clustered standard errors for panel regressions only after a country-level panel has enough clusters.
-- Driscoll-Kraay as robustness if cross-sectional dependence is serious.
+- Country-clustered standard errors only after a country-level panel has enough
+  independent clusters.
 
 Current safeguard:
 
-- The aggregate `run_panel_interaction` helper rejects clustered inference when fewer than three `market_id` clusters are available. This blocks the current two-market aggregate sample from producing formal-looking clustered output, but it does not make small-cluster inference credible.
+- The aggregate `run_panel_interaction` helper rejects clustered inference when
+  fewer than three `market_id` clusters are available. This blocks the current
+  two-market aggregate sample from producing formal-looking clustered output,
+  but it does not make small-cluster inference credible.
 
 Do not report naive ordinary least squares standard errors as the main result.
 
-## Forecasting design
+## Forecasting
 
-### Train-test split
-
-Use expanding-window or rolling-window validation.
-
-Forbidden:
-
-- Random train-test split for time series.
-- Using future macro revisions without acknowledging vintage problems.
-
-### Models
-
-Current implemented real-data V0.1a models:
+Current implemented real-data V0.1a forecast models:
 
 1. Historical mean.
 2. GPR-only linear model using `gpr_change`.
 3. Ridge-regularized GPR-only linear model.
 
-Sample-pipeline software checks only:
-
-1. Macro-only linear baseline.
-2. Macro plus GPR linear model.
-3. Macro plus GPR plus GDELT linear model.
-4. Ridge-regularized linear model.
-
-Planned extensions, not current implementation:
-
-1. AR model.
-2. Elastic net.
-3. Random forest or gradient boosting.
-4. Small neural network.
-5. Text embeddings from public GDELT text fields, if legally and technically feasible.
-
-### Forecast targets
-
-Start with:
+Current implemented target:
 
 ```text
-next_month_negative_return
-next_month_volatility
 emerging_minus_developed_return_spread
 ```
 
-Volatility and downside risk are more plausible than point return prediction.
+Sample-pipeline software checks also exercise macro-only, macro-plus-GPR,
+macro-plus-GDELT, and ridge-regularized linear variants using deterministic
+sample features. Those are software checks, not real empirical claims.
 
-## Robustness checks
+Rules:
 
-Required before claiming the full V0.1 acceptance target is met:
+- Use expanding-window or rolling-window validation.
+- Do not use random train-test splits for time series.
+- Do not use future macro revisions without documenting vintage problems.
+- Keep forecast comparisons modest when the feature set is narrow.
+
+Future models include AR, elastic net, tree-based models, and richer event/text
+features only after the data pipeline supports them.
+
+## Robustness Checks
+
+Required before claiming the full V0.1 empirical release:
 
 1. Replace GPR level with GPR shock.
 2. Use threats and acts separately.
@@ -226,20 +183,19 @@ Required before claiming the full V0.1 acceptance target is met:
 8. Report whether results survive controls.
 
 The current V0.1a findings are an initial real-data milestone, not the full
-robustness package. Items above remain required before treating the project as a
-complete V0.1 empirical release.
+robustness package.
 
-## Interpretation rules
+## Interpretation Rules
 
 Allowed:
 
-- “Associated with”.
-- “Predicts out of sample within this validation design”.
-- “Emerging markets exhibit a larger conditional response”.
+- "Associated with".
+- "Predicts out of sample within this validation design".
+- "Emerging markets exhibit a larger conditional response".
 
 Avoid unless strongly justified:
 
-- “Causes”.
-- “Proves”.
-- “Tradeable signal”.
-- “Markets are inefficient”.
+- "Causes".
+- "Proves".
+- "Tradeable signal".
+- "Markets are inefficient".
