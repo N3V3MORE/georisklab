@@ -50,6 +50,7 @@ def test_validate_real_source_frames_requires_both_markets_each_month(monkeypatc
         {
             "date_month": pd.date_range("2020-01-01", periods=3, freq="MS"),
             "gpr_global": [100.0, 101.0, 102.0],
+            "source_download_date": ["2026-06-15"] * 3,
         }
     )
     returns = pd.DataFrame(
@@ -59,6 +60,7 @@ def test_validate_real_source_frames_requires_both_markets_each_month(monkeypatc
             "return_usd": [1.0, 2.0, 1.5],
             "risk_free_rate": [0.1, 0.1, 0.1],
             "excess_return": [0.9, 1.9, 1.4],
+            "source_download_date": ["2026-06-15"] * 3,
         }
     )
 
@@ -69,7 +71,13 @@ def test_validate_real_source_frames_requires_both_markets_each_month(monkeypatc
 def test_validate_real_source_frames_rejects_implausible_percentage_returns(monkeypatch):
     validate_data = _validate_data_module(monkeypatch)
     dates = pd.date_range("2020-01-01", periods=2, freq="MS")
-    gpr = pd.DataFrame({"date_month": dates, "gpr_global": [100.0, 101.0]})
+    gpr = pd.DataFrame(
+        {
+            "date_month": dates,
+            "gpr_global": [100.0, 101.0],
+            "source_download_date": ["2026-06-15"] * 2,
+        }
+    )
     returns = pd.DataFrame(
         {
             "date_month": [dates[0], dates[0], dates[1], dates[1]],
@@ -77,6 +85,7 @@ def test_validate_real_source_frames_rejects_implausible_percentage_returns(monk
             "return_usd": [1.0, 250.0, 1.5, 1.6],
             "risk_free_rate": [0.1, 0.1, 0.1, 0.1],
             "excess_return": [0.9, 249.9, 1.4, 1.5],
+            "source_download_date": ["2026-06-15"] * 4,
         }
     )
 
@@ -87,7 +96,13 @@ def test_validate_real_source_frames_rejects_implausible_percentage_returns(monk
 def test_validate_real_source_frames_rejects_duplicate_gpr_dates(monkeypatch):
     validate_data = _validate_data_module(monkeypatch)
     date = pd.Timestamp("2020-01-01")
-    gpr = pd.DataFrame({"date_month": [date, date], "gpr_global": [100.0, 101.0]})
+    gpr = pd.DataFrame(
+        {
+            "date_month": [date, date],
+            "gpr_global": [100.0, 101.0],
+            "source_download_date": ["2026-06-15"] * 2,
+        }
+    )
     returns = pd.DataFrame(
         {
             "date_month": [date, date],
@@ -95,6 +110,7 @@ def test_validate_real_source_frames_rejects_duplicate_gpr_dates(monkeypatch):
             "return_usd": [1.0, 1.5],
             "risk_free_rate": [0.1, 0.1],
             "excess_return": [0.9, 1.4],
+            "source_download_date": ["2026-06-15"] * 2,
         }
     )
 
@@ -105,7 +121,13 @@ def test_validate_real_source_frames_rejects_duplicate_gpr_dates(monkeypatch):
 def test_validate_real_source_frames_rejects_duplicate_return_keys(monkeypatch):
     validate_data = _validate_data_module(monkeypatch)
     date = pd.Timestamp("2020-01-01")
-    gpr = pd.DataFrame({"date_month": [date], "gpr_global": [100.0]})
+    gpr = pd.DataFrame(
+        {
+            "date_month": [date],
+            "gpr_global": [100.0],
+            "source_download_date": ["2026-06-15"],
+        }
+    )
     returns = pd.DataFrame(
         {
             "date_month": [date, date, date],
@@ -113,6 +135,7 @@ def test_validate_real_source_frames_rejects_duplicate_return_keys(monkeypatch):
             "return_usd": [1.0, 1.1, 1.5],
             "risk_free_rate": [0.1, 0.1, 0.1],
             "excess_return": [0.9, 1.0, 1.4],
+            "source_download_date": ["2026-06-15"] * 3,
         }
     )
 
@@ -123,7 +146,13 @@ def test_validate_real_source_frames_rejects_duplicate_return_keys(monkeypatch):
 def test_validate_real_source_frames_rejects_short_overlap(monkeypatch):
     validate_data = _validate_data_module(monkeypatch)
     dates = pd.date_range("2020-01-01", periods=2, freq="MS")
-    gpr = pd.DataFrame({"date_month": dates, "gpr_global": [100.0, 101.0]})
+    gpr = pd.DataFrame(
+        {
+            "date_month": dates,
+            "gpr_global": [100.0, 101.0],
+            "source_download_date": ["2026-06-15"] * 2,
+        }
+    )
     returns = pd.DataFrame(
         {
             "date_month": [dates[0], dates[0], dates[1], dates[1]],
@@ -131,11 +160,59 @@ def test_validate_real_source_frames_rejects_short_overlap(monkeypatch):
             "return_usd": [1.0, 1.5, 1.1, 1.6],
             "risk_free_rate": [0.1, 0.1, 0.1, 0.1],
             "excess_return": [0.9, 1.4, 1.0, 1.5],
+            "source_download_date": ["2026-06-15"] * 4,
         }
     )
 
     with pytest.raises(ValueError, match="at least 3 months"):
         validate_data._validate_real_source_frames(gpr, returns, min_overlap_months=3)
+
+
+def test_validate_data_rejects_real_panel_dates_outside_common_sample(monkeypatch, tmp_path):
+    validate_data = _validate_data_module(monkeypatch)
+    _write_minimal_validation_inputs(tmp_path, "real")
+    processed_dir = tmp_path / "data" / "processed"
+
+    pd.DataFrame(
+        {
+            "date_month": list(pd.date_range("2020-01-01", periods=3, freq="MS")) * 2,
+            "market_id": ["developed"] * 3 + ["emerging"] * 3,
+            "market_class": ["developed"] * 3 + ["emerging"] * 3,
+            "excess_return": [1.0, 1.1, 1.2, 1.3, 1.4, 1.5],
+            "ret_fwd_1m": [0.5, 0.4, None, 0.6, 0.5, None],
+            "gpr_change_z": [0.1, 0.0, None, 0.1, 0.0, None],
+            "gdelt_risk_raw": [0.0] * 6,
+            "gdelt_risk_z": [0.0] * 6,
+            "placeholder_macro_zero": [0.0] * 6,
+        }
+    ).to_csv(processed_dir / "analysis_panel.csv", index=False)
+    pd.DataFrame(
+        {
+            "date_month": pd.date_range("2020-01-01", periods=2, freq="MS"),
+            "gpr_global": [100.0, 101.0],
+            "source_download_date": ["2026-06-15"] * 2,
+        }
+    ).to_csv(processed_dir / "gpr_monthly.csv", index=False)
+    pd.DataFrame(
+        {
+            "date_month": list(pd.date_range("2020-01-01", periods=3, freq="MS")) * 2,
+            "market_id": ["developed"] * 3 + ["emerging"] * 3,
+            "return_usd": [1.0, 1.1, 1.2, 1.3, 1.4, 1.5],
+            "risk_free_rate": [0.1] * 6,
+            "excess_return": [0.9, 1.0, 1.1, 1.2, 1.3, 1.4],
+            "source_download_date": ["2026-06-15"] * 6,
+        }
+    ).to_csv(processed_dir / "market_returns_monthly.csv", index=False)
+
+    with pytest.raises(
+        ValueError,
+        match="analysis panel dates must match the common GPR and returns sample",
+    ):
+        validate_data.validate_data(
+            dataset="real",
+            root=tmp_path,
+            min_overlap_months=2,
+        )
 
 
 def test_validate_forward_returns_only_allows_final_missing_rows(monkeypatch):
@@ -181,6 +258,52 @@ def test_validate_real_manifest_requires_expected_names_and_local_hashes(
 
     with pytest.raises(ValueError, match="hash"):
         validate_data._validate_metadata(path, "real")
+
+
+def test_validate_real_analysis_manifest_requires_placeholder_contract(
+    monkeypatch,
+    tmp_path,
+):
+    validate_data = _validate_data_module(monkeypatch)
+    path = tmp_path / "analysis_panel_manifest_real.json"
+    path.write_text(
+        json.dumps(
+            {
+                "dataset": "real",
+                "sample_start": "2020-01-01",
+                "sample_end": "2020-02-01",
+                "n_months": 2,
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="used_placeholder_gdelt"):
+        validate_data._validate_analysis_panel_manifest(path, "real")
+
+
+def test_validate_data_rejects_real_panel_missing_required_market_month(
+    monkeypatch,
+    tmp_path,
+):
+    validate_data = _validate_data_module(monkeypatch)
+    _write_minimal_validation_inputs(tmp_path, "real")
+    panel_path = tmp_path / "data" / "processed" / "analysis_panel.csv"
+    panel = pd.read_csv(panel_path)
+    bad_panel = panel[
+        ~(
+            (panel["date_month"] == "2020-01-01")
+            & (panel["market_id"] == "emerging")
+        )
+    ]
+    bad_panel.to_csv(panel_path, index=False)
+
+    with pytest.raises(ValueError, match="developed and emerging"):
+        validate_data.validate_data(
+            dataset="real",
+            root=tmp_path,
+            min_overlap_months=2,
+        )
 
 
 @pytest.mark.parametrize("dataset", ["sample", "real"])
@@ -331,6 +454,7 @@ def _write_minimal_validation_inputs(root: Path, dataset: str) -> None:
 
     if dataset == "sample":
         (metadata_dir / "source_manifest.json").write_text("{}", encoding="utf-8")
+        _write_analysis_manifest(metadata_dir / "analysis_panel_manifest.json", dataset)
         return
 
     (metadata_dir / "source_manifest_real.json").write_text(
@@ -359,6 +483,33 @@ def _write_minimal_validation_inputs(root: Path, dataset: str) -> None:
     )
     _minimal_gpr().to_csv(processed_dir / "gpr_monthly.csv", index=False)
     _minimal_returns().to_csv(processed_dir / "market_returns_monthly.csv", index=False)
+    _write_analysis_manifest(metadata_dir / "analysis_panel_manifest_real.json", dataset)
+
+
+def _write_analysis_manifest(path: Path, dataset: str) -> None:
+    manifest = {
+        "dataset": dataset,
+        "sample_start": "2020-01-01",
+        "sample_end": "2020-02-01",
+        "n_months": 2,
+        "used_placeholder_gdelt": dataset == "real",
+        "used_placeholder_macro": dataset == "real",
+    }
+    if dataset == "real":
+        manifest.update(
+            {
+                "processed_input_hashes": {
+                    "market_returns": "abc",
+                    "gpr": "def",
+                },
+                "analysis_panel_hash_sha256": "ghi",
+                "aligned_to_common_gpr_returns_sample": True,
+                "common_sample_start": "2020-01-01",
+                "common_sample_end": "2020-02-01",
+                "common_sample_n_months": 2,
+            }
+        )
+    path.write_text(json.dumps(manifest), encoding="utf-8")
 
 
 def _minimal_panel() -> pd.DataFrame:
@@ -374,7 +525,9 @@ def _minimal_panel() -> pd.DataFrame:
                     "excess_return": 1.0,
                     "ret_fwd_1m": 0.5,
                     "gpr_change_z": 0.1,
-                    "gdelt_risk_z": 0.2,
+                    "gdelt_risk_raw": 0.0,
+                    "gdelt_risk_z": 0.0,
+                    "placeholder_macro_zero": 0.0,
                 },
                 {
                     "date_month": dates[1],
@@ -383,7 +536,9 @@ def _minimal_panel() -> pd.DataFrame:
                     "excess_return": 1.1,
                     "ret_fwd_1m": None,
                     "gpr_change_z": 0.0,
-                    "gdelt_risk_z": 0.1,
+                    "gdelt_risk_raw": 0.0,
+                    "gdelt_risk_z": 0.0,
+                    "placeholder_macro_zero": 0.0,
                 },
             ]
         )
@@ -395,6 +550,7 @@ def _minimal_gpr() -> pd.DataFrame:
         {
             "date_month": pd.date_range("2020-01-01", periods=2, freq="MS"),
             "gpr_global": [100.0, 101.0],
+            "source_download_date": ["2026-06-15"] * 2,
         }
     )
 
@@ -408,6 +564,7 @@ def _minimal_returns() -> pd.DataFrame:
             "return_usd": [1.0, 1.5, 1.1, 1.6],
             "risk_free_rate": [0.1, 0.1, 0.1, 0.1],
             "excess_return": [0.9, 1.4, 1.0, 1.5],
+            "source_download_date": ["2026-06-15"] * 4,
         }
     )
 
@@ -437,12 +594,19 @@ def _write_minimal_result_tables(root: Path, dataset: str) -> None:
             "term": ["const", "gpr_change_z"],
             "estimate": [0.0, 0.1],
             "std_error": [0.1, 0.1],
+            "t_value": [0.0, 1.0],
             "p_value": [0.5, 0.4],
+            "nobs": [2, 2],
+            "adjusted_r2": [0.0, 0.0],
+            "se_type": ["HAC", "HAC"],
         }
     ).to_csv(_regression_table_path(root, dataset), index=False)
     pd.DataFrame(
         {
             "model": ["historical_mean", "gpr_only"],
+            "rmse": [1.0, 1.1],
+            "mae": [0.8, 0.9],
+            "oos_r2": [0.0, -0.1],
             "n_forecasts": [10, 10],
             "first_forecast_date": ["2020-01-01", "2020-01-01"],
             "last_forecast_date": ["2020-10-01", "2020-10-01"],

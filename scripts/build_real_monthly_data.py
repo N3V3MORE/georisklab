@@ -2,8 +2,9 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 from pathlib import Path
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urlunparse
 
 import pandas as pd
 import yaml
@@ -21,6 +22,7 @@ from georisklab.ingest.source_metadata import (  # noqa: E402
 from georisklab.utils.config import get_project_paths  # noqa: E402
 
 SCRIPT_VERSION = "real-monthly-v1"
+MAX_URL_SOURCE_BYTES = 100 * 1024 * 1024
 
 
 def build_real_monthly_data(config_path: Path, root: Path | None = None) -> None:
@@ -28,26 +30,43 @@ def build_real_monthly_data(config_path: Path, root: Path | None = None) -> None
     paths.ensure_output_dirs()
     config = _load_config(config_path)
     period = config.get("sample_period", {})
+    source_download_date = pd.Timestamp.today(tz="UTC").date().isoformat()
+    download_dir = paths.data_raw / "_downloads"
 
     if config["gpr"].get("loader") != "caldara_iacoviello":
         raise ValueError("gpr.loader must be 'caldara_iacoviello'")
 
-    gpr_source = _resolve_source(config["gpr"]["path_or_url"], paths.root)
+    gpr_source = _resolve_source(
+        config["gpr"]["path_or_url"],
+        paths.root,
+        expected_sha256=config["gpr"].get("sha256"),
+        download_dir=download_dir,
+    )
     gpr = load_caldara_iacoviello_gpr(str(gpr_source))
     gpr = _filter_period(gpr, period)
-    gpr["source_download_date"] = pd.Timestamp.today(tz="UTC").date().isoformat()
+    gpr["source_download_date"] = source_download_date
     gpr.to_csv(paths.data_processed / "gpr_monthly.csv", index=False)
     gpr_manifest = _write_manifest(
         paths.data_metadata / "gpr_manifest.json",
         source_name="Caldara-Iacoviello GPR",
-        source_url=str(config["gpr"]["path_or_url"]),
+        source_url=_redact_source_url(str(config["gpr"]["path_or_url"])),
         raw_file_path=str(gpr_source),
         license_or_terms_note="Public benchmark index. Do not redistribute raw source files.",
     )
 
     ff_config = config["fama_french"]
-    developed_source = _resolve_source(ff_config["developed_zip"], paths.root)
-    emerging_source = _resolve_source(ff_config["emerging_zip"], paths.root)
+    developed_source = _resolve_source(
+        ff_config["developed_zip"],
+        paths.root,
+        expected_sha256=ff_config.get("developed_sha256"),
+        download_dir=download_dir,
+    )
+    emerging_source = _resolve_source(
+        ff_config["emerging_zip"],
+        paths.root,
+        expected_sha256=ff_config.get("emerging_sha256"),
+        download_dir=download_dir,
+    )
     developed = load_fama_french_factor_returns(
         str(developed_source),
         market_id="developed",
@@ -59,6 +78,7 @@ def build_real_monthly_data(config_path: Path, root: Path | None = None) -> None
         market_class="emerging",
     )
     returns = _filter_period(pd.concat([developed, emerging], ignore_index=True), period)
+    returns["source_download_date"] = source_download_date
     _validate_spread_market_coverage(returns)
     returns.to_csv(paths.data_processed / "market_returns_monthly.csv", index=False)
 
@@ -74,7 +94,7 @@ def build_real_monthly_data(config_path: Path, root: Path | None = None) -> None
     developed_manifest = _write_manifest(
         paths.data_metadata / "fama_french_developed_manifest.json",
         source_name="Kenneth French Developed Factors",
-        source_url=str(ff_config["developed_zip"]),
+        source_url=_redact_source_url(str(ff_config["developed_zip"])),
         raw_file_path=str(developed_source),
         license_or_terms_note=(
             "Kenneth French data library file. Do not redistribute raw source files."
@@ -83,7 +103,7 @@ def build_real_monthly_data(config_path: Path, root: Path | None = None) -> None
     emerging_manifest = _write_manifest(
         paths.data_metadata / "fama_french_emerging_manifest.json",
         source_name="Kenneth French Emerging Factors",
-        source_url=str(ff_config["emerging_zip"]),
+        source_url=_redact_source_url(str(ff_config["emerging_zip"])),
         raw_file_path=str(emerging_source),
         license_or_terms_note=(
             "Kenneth French data library file. Do not redistribute raw source files."
@@ -120,14 +140,73 @@ def _load_config(config_path: Path) -> dict:
     return config
 
 
-def _resolve_source(path_or_url: str, root: Path) -> Path | str:
+def _redact_source_url(value: str) -> str:
+    if "://" not in value:
+        return value
+    parsed = urlparse(value)
+    host = parsed.hostname or ""
+    if parsed.port:
+        host = f"{host}:{parsed.port}"
+    return urlunparse((parsed.scheme, host, parsed.path, "", "", ""))
+
+
+def _resolve_source(
+    path_or_url: str,
+    root: Path,
+    *,
+    expected_sha256: str | None = None,
+    download_dir: Path | None = None,
+) -> Path:
     if "://" in path_or_url:
         scheme = urlparse(path_or_url).scheme.lower()
-        if scheme not in {"http", "https"}:
+        if scheme != "https":
             raise ValueError(f"unsupported source URL scheme: {scheme}")
-        return path_or_url
+        if not expected_sha256:
+            raise ValueError("HTTPS real-data sources must include an expected SHA-256 hash")
+        return _download_url_source(
+            path_or_url,
+            download_dir or root / "data" / "raw" / "_downloads",
+            expected_sha256,
+        )
     path = Path(path_or_url)
-    return path if path.is_absolute() else root / path
+    resolved = path if path.is_absolute() else root / path
+    if expected_sha256 and _file_sha256(resolved).lower() != expected_sha256.lower():
+        raise ValueError("real-data local source SHA-256 does not match the source config")
+    return resolved
+
+
+def _download_url_source(url: str, download_dir: Path, expected_sha256: str) -> Path:
+    download_dir.mkdir(parents=True, exist_ok=True)
+    digest = hashlib.sha256()
+    chunks = []
+    total = 0
+    with pd.io.common.get_handle(url, mode="rb", is_text=False) as handle:
+        while True:
+            chunk = handle.handle.read(1024 * 1024)
+            if not chunk:
+                break
+            total += len(chunk)
+            if total > MAX_URL_SOURCE_BYTES:
+                raise ValueError("real-data URL source is too large")
+            digest.update(chunk)
+            chunks.append(chunk)
+
+    actual_sha256 = digest.hexdigest()
+    if actual_sha256.lower() != expected_sha256.lower():
+        raise ValueError("real-data URL source SHA-256 does not match the source config")
+
+    source_name = Path(urlparse(url).path).name or "source.bin"
+    output_path = download_dir / f"{actual_sha256[:12]}_{source_name}"
+    output_path.write_bytes(b"".join(chunks))
+    return output_path
+
+
+def _file_sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as file:
+        for chunk in iter(lambda: file.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
 
 
 def _filter_period(df: pd.DataFrame, period: dict) -> pd.DataFrame:

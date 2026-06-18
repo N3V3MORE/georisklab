@@ -25,5 +25,7 @@ jobs:
         run: ruff check .
       - name: Sample pipeline
         run: make pipeline
+      - name: Generated output freshness
+        run: make check-generated
       - name: Test
         run: pytest

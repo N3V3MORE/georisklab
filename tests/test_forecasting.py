@@ -67,12 +67,37 @@ def test_evaluate_forecasts_rejects_bad_benchmark_length():
         )
 
 
+def test_evaluate_forecasts_rejects_nonfinite_values():
+    with pytest.raises(ValueError, match="finite"):
+        evaluate_forecasts(
+            [1.0, np.nan],
+            [1.0, 2.0],
+            task="regression",
+            benchmark_pred=[1.0, 1.0],
+        )
+
+
+def test_evaluate_forecasts_rejects_zero_error_benchmark_with_model_error():
+    with pytest.raises(ValueError, match="benchmark"):
+        evaluate_forecasts(
+            [1.0, 1.0],
+            [1.0, 2.0],
+            task="regression",
+            benchmark_pred=[1.0, 1.0],
+        )
+
+
 def test_evaluate_forecasts_classification_metrics():
     metrics = evaluate_forecasts([0, 1, 1], [0.2, 0.8, 0.6], task="classification")
 
     assert metrics["brier_score"] == pytest.approx(0.08)
     assert metrics["directional_accuracy"] == 1.0
     assert "log_loss" in metrics
+
+
+def test_evaluate_forecasts_rejects_nonbinary_classification_labels():
+    with pytest.raises(ValueError, match="classification"):
+        evaluate_forecasts([0, 2], [0.2, 0.8], task="classification")
 
 
 def test_expanding_window_forecast_standardizes_features_without_future_leakage():

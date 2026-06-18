@@ -8,10 +8,10 @@ from georisklab.utils.validation import assert_no_duplicate_keys
 
 
 def load_world_bank_indicator(indicator: str, countries: list[str]) -> pd.DataFrame:
-    country_part = ";".join(countries)
+    country_part = ";".join(quote(country, safe="") for country in countries)
     url = (
         "https://api.worldbank.org/v2/country/"
-        f"{quote(country_part)}/indicator/{quote(indicator)}?format=json&per_page=20000"
+        f"{country_part}/indicator/{quote(indicator, safe='')}?format=json&per_page=20000"
     )
 
     with urlopen(url, timeout=30) as response:

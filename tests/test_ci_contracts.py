@@ -8,7 +8,7 @@ def test_makefile_has_full_pipeline_target():
 
     assert (
         ".PHONY: setup data-monthly data-real features regressions forecasts figures "
-        "report validate-data validate-results pipeline pipeline-real test lint"
+        "report validate-data validate-results check-generated pipeline pipeline-real test lint"
     ) in makefile
     assert "pipeline:" in makefile
     assert (
@@ -22,7 +22,11 @@ def test_makefile_has_real_pipeline_targets():
     makefile = (root / "Makefile").read_text(encoding="utf-8")
 
     assert "data-real:" in makefile
-    assert "python scripts/build_real_monthly_data.py --config config/sources.yml" in makefile
+    assert "python scripts/build_real_monthly_data.py --config $(CONFIG)" in makefile
+    assert (
+        "python scripts/run_regressions.py --dataset $(DATASET) --horizons $(HORIZONS)"
+        in makefile
+    )
     assert "python scripts/build_report.py --dataset $(DATASET)" in makefile
     assert "validate-results:" in makefile
     assert "pipeline-real:" in makefile
@@ -36,10 +40,12 @@ def test_validation_targets_distinguish_data_from_results(monkeypatch):
     root = Path(__file__).resolve().parents[1]
     makefile = (root / "Makefile").read_text(encoding="utf-8")
 
-    assert "validate-data:\n\tpython scripts/validate_data.py --dataset $(DATASET)\n" in makefile
+    assert "--min-overlap-months $(MIN_OVERLAP_MONTHS)" in makefile
+    assert "--min-forecast-train-months $(MIN_FORECAST_TRAIN_MONTHS)" in makefile
     assert (
         "validate-results:\n\tpython scripts/validate_data.py "
-        "--dataset $(DATASET) --check-results\n"
+        "--dataset $(DATASET) --min-overlap-months $(MIN_OVERLAP_MONTHS) "
+        "--min-forecast-train-months $(MIN_FORECAST_TRAIN_MONTHS) --check-results\n"
     ) in makefile
 
     monkeypatch.syspath_prepend(str(root / "scripts"))
@@ -56,7 +62,19 @@ def test_ci_runs_sample_pipeline_before_tests():
     workflow = (root / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
 
     assert "run: make pipeline" in workflow
+    assert "run: make check-generated" in workflow
     assert workflow.index("run: make pipeline") < workflow.index("run: pytest")
+    assert workflow.index("run: make check-generated") < workflow.index("run: pytest")
+
+
+def test_makefile_checks_generated_output_freshness():
+    root = Path(__file__).resolve().parents[1]
+    makefile = (root / "Makefile").read_text(encoding="utf-8")
+
+    assert "check-generated:" in makefile
+    assert "git diff --exit-code" in makefile
+    assert "git ls-files --error-unmatch data/metadata/analysis_panel_manifest.json" in makefile
+    assert "data/metadata/analysis_panel_manifest.json" in makefile
 
 
 def test_ci_runs_declared_python_versions():

@@ -1,3 +1,4 @@
+import subprocess
 from pathlib import Path
 
 
@@ -54,6 +55,26 @@ def test_real_data_report_outputs_are_gitignored():
     assert "reports/main_report_real.pdf" in gitignore
     assert "reports/tables/*_real.csv" in gitignore
     assert "reports/figures/*_real.png" in gitignore
+
+
+def test_ignored_real_data_report_outputs_are_not_tracked():
+    root = Path(__file__).resolve().parents[1]
+    result = subprocess.run(
+        [
+            "git",
+            "ls-files",
+            "reports/main_report_real.pdf",
+            "reports/tables/*_real.csv",
+            "reports/figures/*_real.png",
+        ],
+        cwd=root,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.splitlines() == []
 
 
 def test_reproducibility_docs_reference_existing_environment_file():

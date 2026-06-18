@@ -11,6 +11,7 @@ def run_spread_regression(panel: pd.DataFrame, horizon: int, config: dict) -> Re
     controls = config.get("controls", [])
     target_col = f"ret_fwd_{horizon}m"
     ensure_columns(panel, ["date_month", "market_id", target_col, shock_col, *controls])
+    _ensure_developed_emerging_months(panel)
 
     spread = (
         panel.pivot_table(index="date_month", columns="market_id", values=target_col)
@@ -18,7 +19,7 @@ def run_spread_regression(panel: pd.DataFrame, horizon: int, config: dict) -> Re
         [["spread_fwd"]]
         .reset_index()
     )
-    predictors = panel.drop_duplicates("date_month")[["date_month", shock_col, *controls]]
+    predictors = _month_level_frame(panel, [shock_col, *controls])
     data = spread.merge(predictors, on="date_month").dropna()
 
     x = sm.add_constant(data[[shock_col, *controls]], has_constant="add")
@@ -41,6 +42,10 @@ def run_panel_interaction(panel: pd.DataFrame, horizon: int, config: dict) -> Re
     )
 
     data = panel.dropna(subset=[target_col, shock_col, *controls]).copy()
+    expected_classes = {"developed", "emerging"}
+    bad_classes = sorted(set(data["market_class"].dropna()) - expected_classes)
+    if bad_classes:
+        raise ValueError(f"market_class contains unsupported labels: {bad_classes}")
     data["emerging"] = (data["market_class"] == "emerging").astype(float)
     interaction_col = f"emerging_x_{shock_col}"
     data[interaction_col] = data["emerging"] * data[shock_col]
@@ -59,7 +64,16 @@ def run_panel_interaction(panel: pd.DataFrame, horizon: int, config: dict) -> Re
     else:
         x = sm.add_constant(x, has_constant="add")
 
-    fitted = sm.OLS(y, x).fit(cov_type="cluster", cov_kwds={"groups": data["market_id"]})
+    cluster_groups = data["market_id"]
+    min_clusters = max(3, int(config.get("cluster_min_groups", 3)))
+    n_clusters = int(cluster_groups.nunique())
+    if n_clusters < min_clusters:
+        raise ValueError(
+            "clustered standard errors require at least "
+            f"{min_clusters} unique market_id clusters; got {n_clusters}"
+        )
+
+    fitted = sm.OLS(y, x).fit(cov_type="cluster", cov_kwds={"groups": cluster_groups})
 
     return _to_result(fitted, {"horizon": horizon, "model": "panel_interaction"}, "clustered")
 
@@ -79,6 +93,29 @@ def _absorb_fixed_effects(
         if change < tolerance:
             break
     return residual
+
+
+def _ensure_developed_emerging_months(panel: pd.DataFrame) -> None:
+    required_markets = {"developed", "emerging"}
+    coverage = panel.groupby("date_month")["market_id"].agg(lambda values: set(values))
+    bad_months = coverage[coverage != required_markets]
+    if not bad_months.empty:
+        raise ValueError("panel must contain developed and emerging markets for every month")
+
+
+def _month_level_frame(panel: pd.DataFrame, columns: list[str]) -> pd.DataFrame:
+    uniqueness = panel.groupby("date_month")[columns].nunique(dropna=False)
+    varying = uniqueness.gt(1).any(axis=1)
+    if varying.any():
+        sample = [
+            pd.Timestamp(value).strftime("%Y-%m-%d")
+            for value in uniqueness.index[varying][:5]
+        ]
+        raise ValueError(
+            "predictor columns must be unique within date_month; "
+            f"bad months: {sample}"
+        )
+    return panel.drop_duplicates("date_month")[["date_month", *columns]]
 
 
 def _to_result(fitted, metadata: dict, se_type: str) -> RegressionResult:

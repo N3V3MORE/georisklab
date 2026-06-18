@@ -1,0 +1,15 @@
+{
+  "dataset": "sample",
+  "sample_start": "2000-01-01",
+  "sample_end": "2024-12-01",
+  "n_months": 300,
+  "used_placeholder_gdelt": false,
+  "used_placeholder_macro": false,
+  "processed_input_hashes": {
+    "market_returns": "d33adea6a22b183bdf8ac6582a77e5a93eda66683f696a10fbc3da6fb4fbea01",
+    "gpr": "32b96f50800df738b12e2f6bb8f78c686578b54c3b43318e91cd9f13ab9d5fc6",
+    "gdelt": "5ad0e67d861fa46f82f5c765d7e03ccf4206b112ff3e43f5988354e5109376ef",
+    "macro": "42295a22bb319b4e644d1d5bb1caa98d129b6346e254bad4b56978c174155f45"
+  },
+  "analysis_panel_hash_sha256": "9a2691ee519a0108ce13ac0534416847fd7f226fa037b214295247df1d6b0bad"
+}

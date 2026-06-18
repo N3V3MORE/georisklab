@@ -94,6 +94,10 @@ Use developed and emerging files from the Kenneth French Data Library for the
 first empirical aggregate benchmark. The parser is fixture-tested with local
 zip files so CI does not depend on live downloads.
 
+When using HTTPS zip URLs instead of local files, record the expected SHA-256 in
+`config/sources.yml`; the loader caches and verifies the downloaded file before
+processing.
+
 ### FRED
 
 Use case:

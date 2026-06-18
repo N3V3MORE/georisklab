@@ -21,6 +21,10 @@ def make_gpr_shock_features(df: pd.DataFrame) -> pd.DataFrame:
     result["_original_order"] = range(len(result))
     result = result.sort_values("date_month").reset_index(drop=True)
     values = pd.to_numeric(result["gpr_global"], errors="raise").astype(float)
+    if not np.isfinite(values.dropna()).all():
+        raise ValueError("gpr_global must contain only finite values")
+    if values.le(0).any():
+        raise ValueError("gpr_global must be positive to compute log changes")
 
     result["gpr_level_z"] = _zscore(values)
     result["gpr_global_z"] = result["gpr_level_z"]
@@ -68,18 +72,24 @@ def expanding_standardize_shocks(
 
 
 def _prior_expanding_zscore(series: pd.Series, min_periods: int) -> pd.Series:
-    values = pd.to_numeric(series, errors="raise")
+    values = pd.to_numeric(series, errors="raise").astype(float)
+    if not np.isfinite(values.dropna()).all():
+        raise ValueError("shock values must contain only finite numeric values")
     prior_count = values.expanding(min_periods=1).count().shift(1)
     has_history = prior_count >= min_periods
     mean = values.expanding(min_periods=min_periods).mean().shift(1)
     std = values.expanding(min_periods=min_periods).std(ddof=0).shift(1)
     zscore = (values - mean) / std
     zscore = zscore.replace([float("inf"), float("-inf")], pd.NA)
-    return zscore.where(~(has_history & zscore.isna()), 0.0).where(has_history)
+    zero_std = has_history & std.eq(0) & values.notna()
+    zscore = zscore.mask(zero_std, 0.0)
+    return zscore.where(has_history)
 
 
 def _zscore(values: pd.Series) -> pd.Series:
     numeric = pd.to_numeric(values, errors="raise").astype(float)
+    if not np.isfinite(numeric.dropna()).all():
+        raise ValueError("z-score inputs must contain only finite numeric values")
     std = numeric.std(ddof=0)
     if std == 0 or pd.isna(std):
         return numeric.where(numeric.isna(), 0.0)
