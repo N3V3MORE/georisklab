@@ -7,6 +7,7 @@ from georisklab.models.forecasting import (
     expanding_window_forecast,
     forecast_metric_row,
     forecast_metric_rows,
+    iter_expanding_window_frames,
 )
 from georisklab.models.metrics import evaluate_forecasts
 from georisklab.models.splits import make_time_splits
@@ -66,12 +67,37 @@ def test_evaluate_forecasts_rejects_bad_benchmark_length():
         )
 
 
+def test_evaluate_forecasts_rejects_nonfinite_values():
+    with pytest.raises(ValueError, match="finite"):
+        evaluate_forecasts(
+            [1.0, np.nan],
+            [1.0, 2.0],
+            task="regression",
+            benchmark_pred=[1.0, 1.0],
+        )
+
+
+def test_evaluate_forecasts_rejects_zero_error_benchmark_with_model_error():
+    with pytest.raises(ValueError, match="benchmark"):
+        evaluate_forecasts(
+            [1.0, 1.0],
+            [1.0, 2.0],
+            task="regression",
+            benchmark_pred=[1.0, 1.0],
+        )
+
+
 def test_evaluate_forecasts_classification_metrics():
     metrics = evaluate_forecasts([0, 1, 1], [0.2, 0.8, 0.6], task="classification")
 
     assert metrics["brier_score"] == pytest.approx(0.08)
     assert metrics["directional_accuracy"] == 1.0
     assert "log_loss" in metrics
+
+
+def test_evaluate_forecasts_rejects_nonbinary_classification_labels():
+    with pytest.raises(ValueError, match="classification"):
+        evaluate_forecasts([0, 2], [0.2, 0.8], task="classification")
 
 
 def test_expanding_window_forecast_standardizes_features_without_future_leakage():
@@ -94,6 +120,23 @@ def test_expanding_window_forecast_standardizes_features_without_future_leakage(
 
     assert "benchmark_predicted" in forecasts.columns
     assert forecasts["benchmark_predicted"].iloc[0] == pytest.approx(3.5)
+
+
+def test_iter_expanding_window_frames_uses_positional_windows():
+    df = pd.DataFrame(
+        {
+            "date_month": pd.date_range("2020-01-01", periods=5, freq="MS"),
+            "target": [1.0, 2.0, 3.0, 4.0, 5.0],
+        }
+    )
+
+    windows = list(iter_expanding_window_frames(df, min_train_months=2, test_window=2))
+
+    assert len(windows) == 2
+    assert windows[0][0]["target"].tolist() == [1.0, 2.0]
+    assert windows[0][1]["target"].tolist() == [3.0, 4.0]
+    assert windows[1][0]["target"].tolist() == [1.0, 2.0, 3.0, 4.0]
+    assert windows[1][1]["target"].tolist() == [5.0]
 
 
 def test_forecast_metric_row_historical_mean_oos_r2_is_zero():

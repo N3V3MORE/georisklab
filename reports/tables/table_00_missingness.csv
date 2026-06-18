@@ -27,5 +27,5 @@ gdelt_risk_raw,0,0.0
 gdelt_risk_z,0,0.0
 sample_global_cycle,0,0.0
 spread_em_dev,0,0.0
-neg_ret_1m,0,0.0
-left_tail_1m,0,0.0
+neg_ret_1m,2,0.0033
+left_tail_1m,2,0.0033

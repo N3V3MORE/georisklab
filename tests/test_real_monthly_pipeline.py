@@ -112,11 +112,37 @@ def test_resolve_source_rejects_unsupported_url_schemes(monkeypatch):
     monkeypatch.syspath_prepend(str(root / "scripts"))
     build_real_monthly_data = import_module("build_real_monthly_data")
 
-    assert build_real_monthly_data._resolve_source("https://example.test/source.csv", root) == (
-        "https://example.test/source.csv"
-    )
+    with pytest.raises(ValueError, match="expected SHA-256"):
+        build_real_monthly_data._resolve_source("https://example.test/source.csv", root)
+    with pytest.raises(ValueError, match="unsupported source URL scheme"):
+        build_real_monthly_data._resolve_source("http://example.test/source.csv", root)
     with pytest.raises(ValueError, match="unsupported source URL scheme"):
         build_real_monthly_data._resolve_source("file:///tmp/source.csv", root)
+
+
+def test_resolve_source_checks_local_hash_when_provided(monkeypatch, tmp_path):
+    root = Path(__file__).resolve().parents[1]
+    monkeypatch.syspath_prepend(str(root / "scripts"))
+    build_real_monthly_data = import_module("build_real_monthly_data")
+    source = tmp_path / "source.csv"
+    source.write_text("date_month,value\n2020-01-01,1\n", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="SHA-256"):
+        build_real_monthly_data._resolve_source(
+            str(source),
+            root,
+            expected_sha256="0" * 64,
+        )
+
+
+def test_redact_source_url_removes_credentials_and_query(monkeypatch):
+    root = Path(__file__).resolve().parents[1]
+    monkeypatch.syspath_prepend(str(root / "scripts"))
+    build_real_monthly_data = import_module("build_real_monthly_data")
+
+    assert build_real_monthly_data._redact_source_url(
+        "https://user:secret@example.test/source.zip?token=abc#fragment"
+    ) == "https://example.test/source.zip"
 
 
 def test_real_monthly_pipeline_runs_on_fixture_sources(tmp_path):
@@ -156,6 +182,7 @@ def test_real_monthly_pipeline_runs_on_fixture_sources(tmp_path):
         "risk_free_rate",
         "excess_return",
         "source",
+        "source_download_date",
     ]
     assert spread.head(2).to_dict("records") == [
         {"date_month": "2000-01-01", "spread_em_dev": 1.0},
@@ -260,7 +287,8 @@ def test_real_report_text_identifies_user_supplied_data():
 
     assert result.returncode == 0, result.stderr
     assert "GeoRiskLab Real-Data V0.1 Report" in result.stdout
-    assert "user-supplied local raw data" in result.stdout
+    assert "verified real source data" in result.stdout
+    assert "user-supplied local raw data" not in result.stdout
     assert "deterministic sample data" not in result.stdout
 
 
@@ -277,6 +305,8 @@ def test_real_report_metrics_include_baseline_regression_summary(monkeypatch):
             "market_id": ["developed", "emerging", "developed", "emerging"],
             "excess_return": [1.0, 2.0, 3.0, 1.0],
             "spread_em_dev": [1.0, 1.0, -2.0, -2.0],
+            "ret_fwd_1m": [0.5, 0.5, None, None],
+            "gpr_global_z": [0.1, 0.1, 0.2, 0.2],
         }
     )
     regressions = pd.DataFrame(
@@ -291,8 +321,8 @@ def test_real_report_metrics_include_baseline_regression_summary(monkeypatch):
 
     metrics = build_report.report_metrics(panel, regressions, "gpr_global_z")
 
-    assert metrics["sample_period"] == "2000-01-01 to 2000-02-01"
-    assert metrics["n_months"] == 2
+    assert metrics["sample_period"] == "2000-01-01 to 2000-01-01"
+    assert metrics["n_months"] == 1
     assert metrics["mean_emerging_return"] == 1.5
     assert metrics["mean_developed_return"] == 2.0
     assert metrics["mean_spread_em_dev"] == -0.5

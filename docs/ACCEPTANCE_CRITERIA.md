@@ -3,6 +3,9 @@
 ## Version 0.1: credible public project
 
 The project can be public when all criteria below are satisfied.
+The V0.1a real-data milestone is intentionally narrower and should not be
+described as satisfying this full checklist until the robustness items are
+reported.
 
 V0.1 is staged. V0.1a covers real GPR plus aggregate developed/emerging returns.
 Real GDELT and real macro controls are later milestones and must not be implied

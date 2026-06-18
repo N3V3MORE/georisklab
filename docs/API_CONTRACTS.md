@@ -23,7 +23,7 @@ Rules:
 - Numeric columns must be floats.
 - No duplicate date-country keys.
 
-### `load_fama_french_market_returns(source: str) -> pd.DataFrame`
+### `load_fama_french_factor_returns(source: str, market_id: str, market_class: str) -> pd.DataFrame`
 
 Returns:
 
@@ -35,12 +35,15 @@ return_usd
 risk_free_rate
 excess_return
 source
+source_download_date
 ```
 
 Rules:
 
 - Returns are monthly percent values, not decimals.
 - For Fama-French factor files, `Mkt-RF` maps to `excess_return`, `RF` maps to `risk_free_rate`, and `return_usd = excess_return + risk_free_rate`.
+- Local files and HTTPS zip sources with expected SHA-256 hashes must both be supported for Fama-French factor ingestion.
+- `load_fama_french_market_returns(source: str)` is a normalized CSV loader for already tabular project-shaped returns.
 - Developed and emerging market identifiers must be standardised as `developed` and `emerging`.
 - Missing-value sentinels such as `-99.99` must fail validation rather than enter outputs.
 
@@ -58,7 +61,7 @@ value
 Rules:
 
 - Preserve annual frequency as January month-start dates.
-- Expanding or forward-filling annual values to monthly panels happens in a separate feature step.
+- Aggregate country rows and forward-fill annual values to monthly aggregate panels in the feature step.
 
 ### `build_gdelt_country_month(events: pd.DataFrame, filters: dict) -> pd.DataFrame`
 
@@ -76,6 +79,7 @@ avg_goldstein
 avg_tone
 risk_index_raw
 risk_index_zscore
+source_download_date
 filter_version
 ```
 
@@ -84,6 +88,7 @@ Rules:
 - All filters must be saved to metadata.
 - Empty country-months should be explicit zeros where appropriate.
 - `risk_index_zscore` is standardised within `country_iso3`, not globally across all countries.
+- Aggregate panels convert country-month GDELT rows to one row per `date_month` before merging.
 
 ## Features
 
@@ -123,6 +128,7 @@ Rules:
 - Must support market fixed effects.
 - Must support time fixed effects.
 - Must support clustered standard errors.
+- Must reject clustered inference when the available cluster count is too small for the configured guardrail.
 
 ## Forecasting
 
@@ -133,7 +139,7 @@ Rules:
 - Dates must be increasing.
 - Test dates must always be after train dates.
 
-### `evaluate_forecasts(y_true, y_pred, task: str) -> dict`
+### `evaluate_forecasts(y_true, y_pred, task: str, benchmark_pred=None) -> dict`
 
 For regression:
 
@@ -143,7 +149,7 @@ mae
 oos_r2
 ```
 
-Regression `oos_r2` must use a benchmark forecast produced at the forecast origin, such as the historical training-window mean.
+Regression `oos_r2` requires `benchmark_pred` and must use a benchmark forecast produced at the forecast origin, such as the historical training-window mean.
 
 For classification:
 

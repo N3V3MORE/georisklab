@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from georisklab.ingest import market_returns
 from georisklab.ingest.gdelt import build_gdelt_country_month
 from georisklab.ingest.gpr import load_caldara_iacoviello_gpr, load_gpr
 from georisklab.ingest.market_returns import (
@@ -47,9 +48,10 @@ def test_load_gpr_rejects_duplicate_month_keys(tmp_path):
 def test_load_market_returns_standardizes_required_fields(tmp_path):
     path = tmp_path / "returns.csv"
     path.write_text(
-        "date_month,market_id,market_class,return_usd,risk_free_rate,excess_return,source\n"
-        "2020-01-31,developed,developed,1.25,0.05,1.20,test\n"
-        "2020-01-31,emerging,emerging,-2.5,0.05,-2.55,test\n"
+        "date_month,market_id,market_class,return_usd,risk_free_rate,excess_return,source,"
+        "source_download_date\n"
+        "2020-01-31,developed,developed,1.25,0.05,1.20,test,2026-06-15\n"
+        "2020-01-31,emerging,emerging,-2.5,0.05,-2.55,test,2026-06-15\n"
     )
 
     df = load_fama_french_market_returns(str(path))
@@ -62,8 +64,9 @@ def test_load_market_returns_standardizes_required_fields(tmp_path):
 def test_load_market_returns_rejects_formula_mismatch(tmp_path):
     path = tmp_path / "returns.csv"
     path.write_text(
-        "date_month,market_id,market_class,return_usd,risk_free_rate,excess_return,source\n"
-        "2020-01-31,developed,developed,1.25,0.05,2.00,test\n"
+        "date_month,market_id,market_class,return_usd,risk_free_rate,excess_return,source,"
+        "source_download_date\n"
+        "2020-01-31,developed,developed,1.25,0.05,2.00,test,2026-06-15\n"
     )
 
     with pytest.raises(ValueError, match="return_usd must equal"):
@@ -92,15 +95,19 @@ def test_load_caldara_iacoviello_gpr_maps_real_columns(tmp_path):
     ]
 
 
-def test_load_fama_french_factor_returns_parses_zip_fixture(tmp_path):
-    path = tmp_path / "developed.zip"
-    csv_text = (
+def _fama_french_csv_text() -> str:
+    return (
         "This file has a preamble\n"
         ",Mkt-RF,SMB,HML,RF\n"
         "202001,1.20,0.00,0.00,0.05\n"
         "202002,-2.55,0.00,0.00,0.05\n"
         "Annual Factors: January-December\n"
     )
+
+
+def test_load_fama_french_factor_returns_parses_zip_fixture(tmp_path):
+    path = tmp_path / "developed.zip"
+    csv_text = _fama_french_csv_text()
     with zipfile.ZipFile(path, "w") as archive:
         archive.writestr("developed.csv", csv_text)
 
@@ -116,6 +123,102 @@ def test_load_fama_french_factor_returns_parses_zip_fixture(tmp_path):
     ]
     assert df["excess_return"].tolist() == [1.2, -2.55]
     assert df["risk_free_rate"].tolist() == [0.05, 0.05]
+    assert df["return_usd"].tolist() == [1.25, -2.5]
+
+
+def test_load_fama_french_factor_returns_rejects_zip_with_multiple_csvs(tmp_path):
+    path = tmp_path / "developed.zip"
+    with zipfile.ZipFile(path, "w") as archive:
+        archive.writestr("developed.csv", _fama_french_csv_text())
+        archive.writestr("extra.csv", _fama_french_csv_text())
+
+    with pytest.raises(ValueError, match="exactly one CSV"):
+        load_fama_french_factor_returns(
+            str(path),
+            market_id="developed",
+            market_class="developed",
+        )
+
+
+def test_load_fama_french_factor_returns_rejects_oversized_csv_member(
+    tmp_path,
+    monkeypatch,
+):
+    path = tmp_path / "developed.zip"
+    csv_text = _fama_french_csv_text()
+    monkeypatch.setattr(
+        market_returns,
+        "FAMA_FRENCH_MAX_CSV_BYTES",
+        len(csv_text.encode("utf-8")) - 1,
+        raising=False,
+    )
+    with zipfile.ZipFile(path, "w") as archive:
+        archive.writestr("developed.csv", csv_text)
+
+    with pytest.raises(ValueError, match="too large"):
+        load_fama_french_factor_returns(
+            str(path),
+            market_id="developed",
+            market_class="developed",
+        )
+
+
+def test_load_fama_french_factor_returns_rejects_oversized_archive(
+    tmp_path,
+    monkeypatch,
+):
+    path = tmp_path / "developed.zip"
+    with zipfile.ZipFile(path, "w") as archive:
+        archive.writestr("developed.csv", _fama_french_csv_text())
+    monkeypatch.setattr(
+        market_returns,
+        "FAMA_FRENCH_MAX_ARCHIVE_BYTES",
+        path.stat().st_size - 1,
+        raising=False,
+    )
+
+    with pytest.raises(ValueError, match="archive is too large"):
+        load_fama_french_factor_returns(
+            str(path),
+            market_id="developed",
+            market_class="developed",
+        )
+
+
+def test_load_fama_french_factor_returns_supports_remote_zip_urls(monkeypatch):
+    buffer = BytesIO()
+    with zipfile.ZipFile(buffer, "w") as archive:
+        archive.writestr("developed.csv", _fama_french_csv_text())
+    zip_bytes = buffer.getvalue()
+
+    class FakeHandle:
+        def __init__(self, data: bytes):
+            self.handle = BytesIO(data)
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, traceback):
+            self.handle.close()
+            return False
+
+    def fake_get_handle(source, mode="r", *args, **kwargs):
+        assert source == "https://example.test/developed.zip"
+        assert mode == "rb"
+        return FakeHandle(zip_bytes)
+
+    monkeypatch.setattr(market_returns.pd.io.common, "get_handle", fake_get_handle)
+
+    df = load_fama_french_factor_returns(
+        "https://example.test/developed.zip",
+        market_id="developed",
+        market_class="developed",
+    )
+
+    assert df["date_month"].tolist() == [
+        pd.Timestamp("2020-01-01"),
+        pd.Timestamp("2020-02-01"),
+    ]
     assert df["return_usd"].tolist() == [1.25, -2.5]
 
 
@@ -250,3 +353,41 @@ def test_load_world_bank_indicator_rejects_duplicate_keys(monkeypatch):
 
     with pytest.raises(ValueError, match="duplicate keys"):
         load_world_bank_indicator("FP.CPI.TOTL.ZG", ["USA"])
+
+
+def test_load_world_bank_indicator_preserves_multi_country_separator(monkeypatch):
+    payload = [
+        {"page": 1, "pages": 1},
+        [
+            {
+                "date": "2020",
+                "countryiso3code": "USA",
+                "indicator": {"id": "FP.CPI.TOTL.ZG"},
+                "value": 1.2,
+            },
+            {
+                "date": "2020",
+                "countryiso3code": "CAN",
+                "indicator": {"id": "FP.CPI.TOTL.ZG"},
+                "value": 1.4,
+            },
+        ],
+    ]
+
+    class Response(BytesIO):
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, traceback):
+            return False
+
+    def fake_urlopen(url, timeout=30):
+        assert "/country/USA;CAN/indicator/FP.CPI.TOTL.ZG" in url
+        assert "%3B" not in url
+        return Response(json.dumps(payload).encode("utf-8"))
+
+    monkeypatch.setattr("georisklab.ingest.world_bank.urlopen", fake_urlopen)
+
+    df = load_world_bank_indicator("FP.CPI.TOTL.ZG", ["USA", "CAN"])
+
+    assert set(df["country_iso3"]) == {"USA", "CAN"}

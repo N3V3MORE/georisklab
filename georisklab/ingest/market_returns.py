@@ -1,5 +1,6 @@
 import zipfile
-from io import StringIO
+from io import BytesIO, StringIO
+from urllib.parse import urlparse
 
 import numpy as np
 import pandas as pd
@@ -11,6 +12,7 @@ from georisklab.utils.validation import (
 )
 
 RETURN_COLUMNS = ["return_usd", "risk_free_rate", "excess_return"]
+FAMA_FRENCH_MAX_ARCHIVE_BYTES = 10 * 1024 * 1024
 FAMA_FRENCH_MAX_CSV_BYTES = 5 * 1024 * 1024
 REQUIRED_COLUMNS = [
     "date_month",
@@ -18,6 +20,7 @@ REQUIRED_COLUMNS = [
     "market_class",
     *RETURN_COLUMNS,
     "source",
+    "source_download_date",
 ]
 
 
@@ -39,6 +42,7 @@ def load_fama_french_factor_returns(
     df["market_class"] = market_class
     df["return_usd"] = df["excess_return"] + df["risk_free_rate"]
     df["source"] = source_name
+    df["source_download_date"] = ""
     return _normalize_market_returns(df)
 
 
@@ -64,8 +68,9 @@ def _normalize_market_returns(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def _read_text_source(source: str) -> str:
-    if source.lower().endswith(".zip"):
-        with zipfile.ZipFile(source) as archive:
+    if _is_zip_source(source):
+        archive_bytes = _read_binary_source(source)
+        with zipfile.ZipFile(BytesIO(archive_bytes)) as archive:
             csv_members = [
                 info
                 for info in archive.infolist()
@@ -79,7 +84,29 @@ def _read_text_source(source: str) -> str:
             if csv_member.file_size > FAMA_FRENCH_MAX_CSV_BYTES:
                 raise ValueError("Fama-French CSV member is too large")
             return archive.read(csv_member).decode("utf-8-sig")
-    return pd.io.common.get_handle(source, mode="r").handle.read()
+    with pd.io.common.get_handle(source, mode="r") as handle:
+        return handle.handle.read()
+
+
+def _is_zip_source(source: str) -> bool:
+    parsed = urlparse(source)
+    path = parsed.path if parsed.scheme else source
+    return path.lower().endswith(".zip")
+
+
+def _read_binary_source(source: str) -> bytes:
+    chunks = []
+    total = 0
+    with pd.io.common.get_handle(source, mode="rb", is_text=False) as handle:
+        while True:
+            chunk = handle.handle.read(1024 * 1024)
+            if not chunk:
+                break
+            total += len(chunk)
+            if total > FAMA_FRENCH_MAX_ARCHIVE_BYTES:
+                raise ValueError("Fama-French zip archive is too large")
+            chunks.append(chunk)
+    return b"".join(chunks)
 
 
 def _extract_fama_french_monthly_rows(text: str) -> list[tuple[pd.Timestamp, float, float]]:

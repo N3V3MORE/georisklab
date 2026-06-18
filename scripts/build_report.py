@@ -92,8 +92,8 @@ def report_text(dataset: str) -> dict[str, str]:
         return {
             "title": "GeoRiskLab Real-Data V0.1 Report",
             "note": (
-                "This report is generated from user-supplied local raw data for real "
-                "GPR and developed/emerging Fama-French return inputs."
+                "This report is generated from verified real source data for GPR and "
+                "developed/emerging Fama-French return inputs."
             ),
             "limitations": (
                 "Limitations: V0.1 uses real GPR and aggregate developed/emerging "
@@ -105,7 +105,7 @@ def report_text(dataset: str) -> dict[str, str]:
 
 
 def report_metrics(panel: pd.DataFrame, regressions: pd.DataFrame, shock_col: str) -> dict:
-    dates = pd.to_datetime(panel["date_month"]).drop_duplicates().sort_values()
+    dates = _report_sample_dates(panel, shock_col)
     means = panel.groupby("market_id")["excess_return"].mean()
     spread = panel.drop_duplicates("date_month")["spread_em_dev"].mean()
     baseline = _baseline_row(regressions, shock_col)
@@ -126,6 +126,21 @@ def report_metrics(panel: pd.DataFrame, regressions: pd.DataFrame, shock_col: st
         "horizon_regressions": _horizon_rows(regressions, shock_col),
         "interpretation": _interpret_regression(estimate, shock_col),
     }
+
+
+def _report_sample_dates(panel: pd.DataFrame, shock_col: str) -> pd.Series:
+    target_col = "ret_fwd_1m"
+    if {target_col, shock_col}.issubset(panel.columns):
+        dates = (
+            pd.to_datetime(
+                panel.loc[panel[target_col].notna() & panel[shock_col].notna(), "date_month"]
+            )
+            .drop_duplicates()
+            .sort_values()
+        )
+        if not dates.empty:
+            return dates
+    return pd.to_datetime(panel["date_month"]).drop_duplicates().sort_values()
 
 
 def _baseline_row(regressions: pd.DataFrame, shock_col: str) -> pd.Series:

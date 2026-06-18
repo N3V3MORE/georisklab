@@ -1,10 +1,16 @@
 gpr:
   path_or_url: data/raw/gpr/gpr_export.csv
+  # Required when path_or_url is an HTTPS URL.
+  # sha256: expected_file_hash_here
   loader: caldara_iacoviello
 
 fama_french:
   developed_zip: data/raw/fama_french/developed_3_factors.zip
+  # Required when developed_zip is an HTTPS URL.
+  # developed_sha256: expected_file_hash_here
   emerging_zip: data/raw/fama_french/emerging_3_factors.zip
+  # Required when emerging_zip is an HTTPS URL.
+  # emerging_sha256: expected_file_hash_here
 
 sample_period:
   start: "2000-01-01"

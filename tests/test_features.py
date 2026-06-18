@@ -39,7 +39,7 @@ def test_make_forward_returns_rejects_missing_calendar_months():
         make_forward_returns(df, [1])
 
 
-def test_build_analysis_panel_rejects_multi_country_gdelt_rows():
+def test_build_analysis_panel_aggregates_multi_country_gdelt_rows():
     market_returns = pd.DataFrame(
         {
             "date_month": list(pd.date_range("2020-01-01", periods=2, freq="MS")) * 2,
@@ -74,11 +74,14 @@ def test_build_analysis_panel_rejects_multi_country_gdelt_rows():
         }
     )
 
-    with pytest.raises(ValueError, match="aggregate to one row per date_month"):
-        build_analysis_panel(market_returns, gpr, gdelt, macro)
+    result = build_analysis_panel(market_returns, gpr, gdelt, macro)
+
+    monthly = result.drop_duplicates("date_month").sort_values("date_month")
+    np.testing.assert_allclose(monthly["gdelt_risk_raw"], [1.5, 2.0])
+    np.testing.assert_allclose(monthly["gdelt_risk_z"], [-1.0, 1.0])
 
 
-def test_build_analysis_panel_rejects_multi_country_macro_controls():
+def test_build_analysis_panel_aggregates_multi_country_macro_controls():
     market_returns = pd.DataFrame(
         {
             "date_month": list(pd.date_range("2020-01-01", periods=2, freq="MS")) * 2,
@@ -119,8 +122,10 @@ def test_build_analysis_panel_rejects_multi_country_macro_controls():
         }
     )
 
-    with pytest.raises(ValueError, match="aggregate to one row per date_month and indicator_code"):
-        build_analysis_panel(market_returns, gpr, gdelt, macro)
+    result = build_analysis_panel(market_returns, gpr, gdelt, macro)
+
+    monthly = result.drop_duplicates("date_month").sort_values("date_month")
+    np.testing.assert_allclose(monthly["inflation_yoy"], [3.0, 3.1])
 
 
 def test_build_analysis_panel_requires_gdelt_raw_risk_index():
@@ -222,6 +227,20 @@ def test_expanding_standardize_shocks_defaults_to_missing_until_min_history():
     assert result["gpr_global_z"].iloc[:24].isna().all()
 
 
+def test_expanding_standardize_shocks_keeps_current_missing_after_history():
+    df = pd.DataFrame(
+        {
+            "date_month": pd.date_range("2020-01-01", periods=4, freq="MS"),
+            "gpr_global": [5.0, 5.0, 5.0, None],
+        }
+    )
+
+    result = expanding_standardize_shocks(df, ["gpr_global"], min_periods=2)
+
+    assert result["gpr_global_z"].iloc[2] == 0.0
+    assert pd.isna(result["gpr_global_z"].iloc[3])
+
+
 def test_make_gpr_shock_features_adds_level_change_log_change_and_ar1_residual():
     df = pd.DataFrame(
         {
@@ -248,6 +267,20 @@ def test_make_gpr_shock_features_adds_level_change_log_change_and_ar1_residual()
     assert pd.isna(result["gpr_change"].iloc[0])
     assert result["gpr_change"].iloc[1] == 5.0
     assert pd.isna(result["gpr_ar1_residual"].iloc[0])
+
+
+def test_make_gpr_shock_features_rejects_nonpositive_gpr():
+    df = pd.DataFrame(
+        {
+            "date_month": pd.date_range("2020-01-01", periods=2, freq="MS"),
+            "gpr_global": [100.0, 0.0],
+            "gprt_global": [60.0, 0.0],
+            "gpra_global": [40.0, 0.0],
+        }
+    )
+
+    with pytest.raises(ValueError, match="positive"):
+        make_gpr_shock_features(df)
 
 
 def test_build_analysis_panel_keeps_downside_labels_missing_when_forward_return_missing():

@@ -1,6 +1,6 @@
 model,rmse,mae,oos_r2,n_forecasts,first_forecast_date,last_forecast_date,forecast_window_aligned,benchmark_model
-historical_mean,0.394994,0.337608,0.0,155,2012-01-01,2024-11-01,True,historical_mean
-macro_only,0.398969,0.341725,-0.020226,155,2012-01-01,2024-11-01,True,historical_mean
-macro_plus_gpr,0.362294,0.325063,0.158719,155,2012-01-01,2024-11-01,True,historical_mean
-macro_plus_gpr_gdelt,0.359088,0.318215,0.173543,155,2012-01-01,2024-11-01,True,historical_mean
-regularized_linear,0.359231,0.318601,0.172886,155,2012-01-01,2024-11-01,True,historical_mean
+historical_mean,0.398882,0.343647,0.0,155,2012-01-01,2024-11-01,True,historical_mean
+macro_only,0.400292,0.344937,-0.007079,155,2012-01-01,2024-11-01,True,historical_mean
+macro_plus_gpr,0.397403,0.343518,0.007404,155,2012-01-01,2024-11-01,True,historical_mean
+macro_plus_gpr_gdelt,0.37912,0.336374,0.096635,155,2012-01-01,2024-11-01,True,historical_mean
+regularized_linear,0.379094,0.33633,0.096759,155,2012-01-01,2024-11-01,True,historical_mean

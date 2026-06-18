@@ -35,7 +35,7 @@ def run_forecasts(
         feature_cols = ["date_month", "sample_global_cycle", "gpr_global", "gdelt_risk_raw"]
     else:
         feature_cols = ["date_month", "gpr_change"]
-    features = panel.drop_duplicates("date_month")[feature_cols]
+    features = _month_level_features(panel, feature_cols)
     forecast_data = target.merge(features, on="date_month").dropna()
 
     rows = _forecast_rows(forecast_data, dataset, min_train_months)
@@ -99,6 +99,21 @@ def _forecast_rows(
         ],
         min_train_months,
     )
+
+
+def _month_level_features(panel: pd.DataFrame, feature_cols: list[str]) -> pd.DataFrame:
+    value_cols = [column for column in feature_cols if column != "date_month"]
+    uniqueness = panel.groupby("date_month")[value_cols].nunique(dropna=False)
+    varying = uniqueness.gt(1).any(axis=1)
+    if varying.any():
+        sample = [
+            pd.Timestamp(value).strftime("%Y-%m-%d")
+            for value in uniqueness.index[varying][:5]
+        ]
+        raise ValueError(
+            f"forecast features must be unique within date_month; bad months: {sample}"
+        )
+    return panel.drop_duplicates("date_month")[feature_cols]
 
 
 def main() -> None:

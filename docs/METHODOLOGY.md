@@ -105,6 +105,10 @@ in global GPR. `gpr_level_z` is kept as a high-risk-regime robustness measure.
 not for real-time forecasting. A future forecasting-safe version should use an
 expanding AR(1) residual such as `gpr_ar1_residual_expanding_z`.
 
+The deterministic sample pipeline injects its synthetic return response using
+the lagged `gpr_change_z` shock, so the forward-return regression estimates the
+same signal that the sample data-generating process uses.
+
 ### Forward cumulative returns
 
 ```text
@@ -156,6 +160,10 @@ Minimum:
 - Country-clustered standard errors for panel regressions only after a country-level panel has enough clusters.
 - Driscoll-Kraay as robustness if cross-sectional dependence is serious.
 
+Current safeguard:
+
+- The aggregate `run_panel_interaction` helper rejects clustered inference when fewer than three `market_id` clusters are available. This blocks the current two-market aggregate sample from producing formal-looking clustered output, but it does not make small-cluster inference credible.
+
 Do not report naive ordinary least squares standard errors as the main result.
 
 ## Forecasting design
@@ -171,17 +179,26 @@ Forbidden:
 
 ### Models
 
-Version 0.1:
+Current implemented real-data V0.1a models:
 
 1. Historical mean.
-2. AR model.
-3. Elastic net.
-4. Random forest or gradient boosting.
+2. GPR-only linear model using `gpr_change`.
+3. Ridge-regularized GPR-only linear model.
 
-Stretch:
+Sample-pipeline software checks only:
 
-1. Small neural network.
-2. Text embeddings from public GDELT text fields, if legally and technically feasible.
+1. Macro-only linear baseline.
+2. Macro plus GPR linear model.
+3. Macro plus GPR plus GDELT linear model.
+4. Ridge-regularized linear model.
+
+Planned extensions, not current implementation:
+
+1. AR model.
+2. Elastic net.
+3. Random forest or gradient boosting.
+4. Small neural network.
+5. Text embeddings from public GDELT text fields, if legally and technically feasible.
 
 ### Forecast targets
 
@@ -197,7 +214,7 @@ Volatility and downside risk are more plausible than point return prediction.
 
 ## Robustness checks
 
-Required:
+Required before claiming the full V0.1 acceptance target is met:
 
 1. Replace GPR level with GPR shock.
 2. Use threats and acts separately.
@@ -207,6 +224,10 @@ Required:
 6. Run placebo dates.
 7. Use alternative horizons.
 8. Report whether results survive controls.
+
+The current V0.1a findings are an initial real-data milestone, not the full
+robustness package. Items above remain required before treating the project as a
+complete V0.1 empirical release.
 
 ## Interpretation rules
 
